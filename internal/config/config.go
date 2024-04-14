@@ -43,7 +43,7 @@ func InitConfig() error {
 	flag.StringVar(&Cfg.Dbuser, "dbuser", "postgres", "Postgress user")
 	flag.StringVar(&Cfg.Dbpassword, "dbpassword", "postgres", "Postgress password")
 	flag.IntVar(&Cfg.Dbport, "dbport", 5432, "Posgress port")
-	flag.StringVar(&Cfg.Dbname, "dbname", "distribcalc", "Postgress database name")
+	flag.StringVar(&Cfg.Dbname, "dbname", "distributedcalc", "Postgress database name")
 
 	flag.IntVar(&Cfg.ServerPort, "httppport", port, "HTTP port to listen to")
 	flag.IntVar(&Cfg.AgentLostTimeout, "agenttimeout", 60, "Timeout before agent considered lost (seconds)")

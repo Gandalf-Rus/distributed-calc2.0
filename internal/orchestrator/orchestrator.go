@@ -11,6 +11,8 @@ import (
 	"github.com/Gandalf-Rus/distributed-calc2.0/internal/config"
 	l "github.com/Gandalf-Rus/distributed-calc2.0/internal/logger"
 	"github.com/Gandalf-Rus/distributed-calc2.0/internal/middlewares"
+	"github.com/Gandalf-Rus/distributed-calc2.0/internal/storage"
+	registrateuser "github.com/Gandalf-Rus/distributed-calc2.0/internal/use_cases/registrate_user"
 	"github.com/gorilla/mux"
 )
 
@@ -18,14 +20,13 @@ type Orchestrator struct {
 	server *http.Server
 }
 
-func New() (*Orchestrator, error) {
+func New(ctx context.Context) (*Orchestrator, error) {
 	const (
 		defaultHTTPServerWriteTimeout = time.Second * 15
 		defaultHTTPServerReadTimeout  = time.Second * 15
 	)
 
 	orch := new(Orchestrator)
-
 	router := mux.NewRouter()
 
 	l.Logger.Info("initializing config...")
@@ -36,8 +37,18 @@ func New() (*Orchestrator, error) {
 
 	router.Use(middlewares.LoggingMiddleware)
 
+	repo := storage.New(ctx)
+	l.Logger.Info("DB tables initialization...")
+	if err := repo.CreateTablesIfNotExist(); err != nil {
+		return nil, err
+	}
+	l.Logger.Info("DB initialization succeeds")
+
+	registerHandler := http.HandlerFunc(registrateuser.MakeHandler(registrateuser.NewSvc(repo)))
+
 	apiRouter := mux.NewRouter().PathPrefix("/api").Subrouter()
 	apiRouter.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) { w.Write([]byte("hi")) }).Methods("GET")
+	apiRouter.HandleFunc("/register", registerHandler).Methods("POST")
 
 	router.PathPrefix("/api").Handler(apiRouter)
 

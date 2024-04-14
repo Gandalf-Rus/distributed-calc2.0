@@ -9,6 +9,7 @@ import (
 )
 
 var Logger *zap.Logger
+var Slogger *zap.SugaredLogger
 
 func InitLogger() {
 
@@ -24,4 +25,5 @@ func InitLogger() {
 	if err != nil {
 		fmt.Printf("Ошибка настройки логгера: %v\n", err)
 	}
+	Slogger = Logger.Sugar()
 }
