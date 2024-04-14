@@ -1,4 +1,4 @@
-package registrateuser
+package loginuser
 
 import (
 	"errors"
@@ -22,13 +22,15 @@ func MakeHandler(s *Service) func(w http.ResponseWriter, r *http.Request) {
 		}
 		defer r.Body.Close()
 
-		err = s.Do(request)
+		response, err := s.Do(request)
 		if err != nil {
-			if errors.Is(err, orchErrors.ErrUnuniqeUser) {
+
+			if errors.Is(err, orchErrors.IncorrectPassword) || errors.Is(err, orchErrors.IncorrectName) {
 				if err = jsonUtils.RespondWith400(w, err.Error()); err != nil {
 					logger.Slogger.Error(err)
 				}
 				return
+
 			} else {
 				logger.Slogger.Error(err)
 				if err = jsonUtils.RespondWith500(w); err != nil {
@@ -38,7 +40,7 @@ func MakeHandler(s *Service) func(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		respondErr := jsonUtils.SuccessRespondWith201(w, struct{}{})
+		respondErr := jsonUtils.SuccessRespondWith200(w, response)
 		if respondErr != nil {
 			logger.Slogger.Error(respondErr)
 		}

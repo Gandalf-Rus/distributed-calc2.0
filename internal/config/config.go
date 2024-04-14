@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"time"
 )
 
 const (
@@ -23,6 +24,7 @@ type Config struct {
 	DelayForMul      int
 	DelayForDiv      int
 	AgentLostTimeout int
+	JwtTokenTimeout  int
 }
 
 var Cfg Config
@@ -47,6 +49,7 @@ func InitConfig() error {
 
 	flag.IntVar(&Cfg.ServerPort, "httppport", port, "HTTP port to listen to")
 	flag.IntVar(&Cfg.AgentLostTimeout, "agenttimeout", 60, "Timeout before agent considered lost (seconds)")
+	flag.IntVar(&Cfg.JwtTokenTimeout, "tokentimeout", int(30*time.Minute), "Timeout before agent considered lost (seconds)")
 
 	flag.Parse()
 

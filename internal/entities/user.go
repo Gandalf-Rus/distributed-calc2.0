@@ -3,9 +3,9 @@ package entities
 import "golang.org/x/crypto/bcrypt"
 
 type User struct {
-	ID       int64
-	Name     string
-	Password string
+	ID       int64  `db:"id"`
+	Name     string `db:"name"`
+	Password string `db:"password"`
 }
 
 func (u *User) SetHashedPassword() error {
@@ -20,7 +20,7 @@ func (u *User) SetHashedPassword() error {
 	return nil
 }
 
-func (u User) ComparePasswords(inputPas string) error {
+func (u User) CheckPassword(inputPas string) error {
 	incoming := []byte(inputPas)
 	existing := []byte(u.Password)
 	return bcrypt.CompareHashAndPassword(existing, incoming)

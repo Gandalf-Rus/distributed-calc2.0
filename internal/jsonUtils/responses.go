@@ -60,7 +60,7 @@ func SuccessRespondWith200(w http.ResponseWriter, payload interface{}) error {
 		payload)
 }
 
-func SuccessRepondWith201(w http.ResponseWriter, payload interface{}) error {
+func SuccessRespondWith201(w http.ResponseWriter, payload interface{}) error {
 	return RespondWithJSON(w,
 		http.StatusCreated,
 		payload)

@@ -19,8 +19,22 @@ const (
 	);
 	`
 
+	reqCreateTokensTable = `
+	CREATE TABLE IF NOT EXISTS tokens(
+		body TEXT PRIMARY KEY NOT NULL
+	);
+	`
+
 	reqInsertUser = `
 	INSERT INTO users (name, password) values ($1, $2)
+	`
+
+	reqSelectUserByName = `
+	SELECT * FROM users WHERE name = $1
+	`
+
+	reqInsertToken = `
+	INSERT INTO tokens (body) values ($1)
 	`
 )
 
@@ -43,6 +57,9 @@ func (s Storage) CreateTablesIfNotExist() error {
 	if err = createUsersTable(s.ctx, conn); err != nil {
 		return err
 	}
+	if err = createTokensTable(s.ctx, conn); err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -54,6 +71,32 @@ func (s Storage) SaveUser(user entities.User) error {
 	}
 	defer conn.Close()
 	if _, err := conn.Exec(s.ctx, reqInsertUser, user.Name, user.Password); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s Storage) GetUser(name string) (entities.User, error) {
+	var user entities.User
+
+	conn, err := connectToDB(s.ctx)
+	if err != nil {
+		return user, err
+	}
+	defer conn.Close()
+	row := conn.QueryRow(s.ctx, reqSelectUserByName, name)
+	err = row.Scan(&user.ID, &user.Name, &user.Password)
+
+	return user, err
+}
+
+func (s Storage) SaveToken(token entities.Token) error {
+	conn, err := connectToDB(s.ctx)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+	if _, err := conn.Exec(s.ctx, reqInsertToken, token.Body); err != nil {
 		return err
 	}
 	return nil
@@ -77,6 +120,13 @@ func connectToDB(ctx context.Context) (*pgxpool.Pool, error) {
 
 func createUsersTable(ctx context.Context, conn *pgxpool.Pool) error {
 	if _, err := conn.Exec(ctx, reqCreateUserTable); err != nil {
+		return err
+	}
+	return nil
+}
+
+func createTokensTable(ctx context.Context, conn *pgxpool.Pool) error {
+	if _, err := conn.Exec(ctx, reqCreateTokensTable); err != nil {
 		return err
 	}
 	return nil
