@@ -20,11 +20,11 @@ func (s *Service) Do(request *request) (response, error) {
 
 	user, err := s.repo.GetUser(request.Name)
 	if err != nil {
-		return response{}, orchErrors.IncorrectName
+		return response{}, orchErrors.ErrIncorrectName
 	}
 
 	if err := user.CheckPassword(request.Password); err != nil {
-		return response{}, orchErrors.IncorrectPassword
+		return response{}, orchErrors.ErrIncorrectPassword
 	}
 
 	resp := response{}

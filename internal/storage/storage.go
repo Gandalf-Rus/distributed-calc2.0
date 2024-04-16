@@ -25,6 +25,38 @@ const (
 	);
 	`
 
+	reqCreateExpressionsTable = `
+	CREATE TABLE IF NOT EXISTS expressions(
+		id SERIAL PRIMARY KEY NOT NULL,
+		exit_id TEXT NOT NULL, 
+		user_id INTEGER NOT NULL,
+		body TEXT NOT NULL,
+		result INTEGER,
+		status TEXT,
+		message TEXT,
+		FOREIGN KEY (user_id) REFERENCES users(id)
+	);
+	`
+
+	reqCreateNodesTable = `
+	CREATE TABLE IF NOT EXISTS nodes(
+		id SERIAL PRIMARY KEY NOT NULL,
+		expression_id INTEGER NOT NULL, 
+		parent_node_id INTEGER NOT NULL,
+		child1_node_id INTEGER NOT NULL,
+		child2_node_id INTEGER NOT NULL,
+		operand1       INTEGER,
+		operand2       INTEGER,
+		operator       CHAR,
+		operatorDelay  INTEGER NOT NULL,
+		result INTEGER,
+		status TEXT,
+		message TEXT,
+		agent_id INTEGER,
+		FOREIGN KEY (expression_id) REFERENCES expressions(id)
+	);
+	`
+
 	reqInsertUser = `
 	INSERT INTO users (name, password) values ($1, $2)
 	`
@@ -35,6 +67,9 @@ const (
 
 	reqInsertToken = `
 	INSERT INTO tokens (body) values ($1)
+	`
+	reqSelectExitIds = `
+	SELECT exit_id FROM expressions
 	`
 )
 
@@ -58,6 +93,12 @@ func (s Storage) CreateTablesIfNotExist() error {
 		return err
 	}
 	if err = createTokensTable(s.ctx, conn); err != nil {
+		return err
+	}
+	if err = createExpressionsTable(s.ctx, conn); err != nil {
+		return err
+	}
+	if err = createNodesTable(s.ctx, conn); err != nil {
 		return err
 	}
 
@@ -102,6 +143,20 @@ func (s Storage) SaveToken(token entities.Token) error {
 	return nil
 }
 
+func (s Storage) GetExpressionExitIds(name string) ([]string, error) {
+	var ids []string
+
+	conn, err := connectToDB(s.ctx)
+	if err != nil {
+		return ids, err
+	}
+	defer conn.Close()
+	row := conn.QueryRow(s.ctx, reqSelectExitIds)
+	err = row.Scan(&ids)
+
+	return ids, err
+}
+
 func connectToDB(ctx context.Context) (*pgxpool.Pool, error) {
 	var dbURL string = fmt.Sprintf("postgresql://%s:%s@%s:%d/%s",
 		config.Cfg.Dbuser,
@@ -127,6 +182,20 @@ func createUsersTable(ctx context.Context, conn *pgxpool.Pool) error {
 
 func createTokensTable(ctx context.Context, conn *pgxpool.Pool) error {
 	if _, err := conn.Exec(ctx, reqCreateTokensTable); err != nil {
+		return err
+	}
+	return nil
+}
+
+func createExpressionsTable(ctx context.Context, conn *pgxpool.Pool) error {
+	if _, err := conn.Exec(ctx, reqCreateExpressionsTable); err != nil {
+		return err
+	}
+	return nil
+}
+
+func createNodesTable(ctx context.Context, conn *pgxpool.Pool) error {
+	if _, err := conn.Exec(ctx, reqCreateNodesTable); err != nil {
 		return err
 	}
 	return nil

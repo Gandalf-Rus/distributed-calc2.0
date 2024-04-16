@@ -1,4 +1,4 @@
-package loginuser
+package postexpression
 
 import (
 	"errors"
@@ -22,10 +22,10 @@ func MakeHandler(s *Service) func(w http.ResponseWriter, r *http.Request) {
 		}
 		defer r.Body.Close()
 
-		response, err := s.Do(request)
+		err = s.Do(request)
 		if err != nil {
 
-			if errors.Is(err, orchErrors.ErrIncorrectPassword) || errors.Is(err, orchErrors.ErrIncorrectName) {
+			if errors.Is(err, orchErrors.ErrExistingExpression) || errors.Is(err, orchErrors.ErrIncorrectExpression) {
 				if err = jsonUtils.RespondWith400(w, err.Error()); err != nil {
 					logger.Slogger.Error(err)
 				}
@@ -40,7 +40,7 @@ func MakeHandler(s *Service) func(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		respondErr := jsonUtils.SuccessRespondWith200(w, response)
+		respondErr := jsonUtils.SuccessRespondWith201(w, struct{}{})
 		if respondErr != nil {
 			logger.Slogger.Error(respondErr)
 		}
