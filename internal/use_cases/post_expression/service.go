@@ -32,6 +32,7 @@ func (s *Service) Do(request *request) error {
 	if err != nil {
 		return orchErr.ErrIncorrectExpression
 	}
+	expr.User_id = int(request.userId)
 
 	err = s.repo.SaveExpressionAndNodes(expr, nodes)
 	return err
