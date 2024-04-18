@@ -46,8 +46,3 @@ func ToStatus(status string) Status {
 	}
 	return -1
 }
-
-type Int struct {
-	IsVal bool
-	Val   int64
-}

@@ -1,7 +1,6 @@
 package config
 
 import (
-	"flag"
 	"fmt"
 	"os"
 	"strconv"
@@ -9,22 +8,32 @@ import (
 )
 
 const (
-	defaultServerPort = "8080"
+	defaultServerPort      = "8080"
+	defaultDBHost          = "localhost"
+	defaultDBPort          = "5432"
+	defaultDBUser          = "postgres"
+	defaultDBPassword      = "postgres"
+	defaultDBName          = "distributedcalc"
+	defaultJWTTokenTimeout = 30 * time.Minute
 )
 
 type Config struct {
-	Dbhost           string
-	Dbuser           string
-	Dbpassword       string
-	Dbname           string
-	Dbport           int
-	ServerPort       int
-	DelayForAdd      int
-	DelayForSub      int
-	DelayForMul      int
-	DelayForDiv      int
-	AgentLostTimeout int
-	JwtTokenTimeout  int
+	ServerPort int
+	Dbhost     string
+	Dbport     int
+	Dbuser     string
+	Dbpassword string
+	Dbname     string
+	// AgentLostTimeout int
+	OperatorsDelay  OperatorsDelay
+	JwtTokenTimeout time.Duration
+}
+
+type OperatorsDelay struct {
+	DelayForAdd int
+	DelayForSub int
+	DelayForMul int
+	DelayForDiv int
 }
 
 var Cfg Config
@@ -41,22 +50,45 @@ func InitConfig() error {
 		return fmt.Errorf("failed to parse %s as int: %w", os.Getenv("SERVER_PORT"), err)
 	}
 
-	flag.StringVar(&Cfg.Dbhost, "dbhost", "localhost", "Postgress host")
-	flag.StringVar(&Cfg.Dbuser, "dbuser", "postgres", "Postgress user")
-	flag.StringVar(&Cfg.Dbpassword, "dbpassword", "postgres", "Postgress password")
-	flag.IntVar(&Cfg.Dbport, "dbport", 5432, "Posgress port")
-	flag.StringVar(&Cfg.Dbname, "dbname", "distributedcalc", "Postgress database name")
+	dbHost := os.Getenv("DB_HOST")
+	if dbHost == "" {
+		dbHost = defaultDBHost
+	}
+	dbPort := os.Getenv("DB_PORT")
+	if dbPort == "" {
+		dbPort = defaultDBPort
+	}
+	dbport, err := strconv.Atoi(dbPort)
+	if err != nil {
+		return fmt.Errorf("failed to parse %s as int: %w", os.Getenv("DB_PORT"), err)
+	}
+	dbUser := os.Getenv("DB_USER")
+	if dbUser == "" {
+		dbUser = defaultDBUser
+	}
+	dbPassword := os.Getenv("DB_PASSWORD")
+	if dbPassword == "" {
+		dbPassword = defaultDBPassword
+	}
+	dbName := os.Getenv("DB_NAME")
+	if dbName == "" {
+		dbName = defaultDBName
+	}
 
-	flag.IntVar(&Cfg.ServerPort, "httppport", port, "HTTP port to listen to")
-	flag.IntVar(&Cfg.AgentLostTimeout, "agenttimeout", 60, "Timeout before agent considered lost (seconds)")
-	flag.IntVar(&Cfg.JwtTokenTimeout, "tokentimeout", int(30*time.Minute), "Timeout before agent considered lost (seconds)")
+	Cfg.ServerPort = port
+	Cfg.Dbhost = dbHost
+	Cfg.Dbport = dbport
+	Cfg.Dbuser = dbUser
+	Cfg.Dbpassword = dbPassword
+	Cfg.Dbname = dbName
 
-	flag.Parse()
-
-	Cfg.DelayForAdd = 10
-	Cfg.DelayForSub = 12
-	Cfg.DelayForMul = 15
-	Cfg.DelayForDiv = 20
+	Cfg.JwtTokenTimeout = defaultJWTTokenTimeout
+	Cfg.OperatorsDelay = OperatorsDelay{
+		DelayForAdd: 10,
+		DelayForSub: 12,
+		DelayForMul: 15,
+		DelayForDiv: 20,
+	}
 
 	return nil
 }

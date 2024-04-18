@@ -19,7 +19,7 @@ func NewSvc(repo repo) *Service {
 
 func (s *Service) Do(request *request) error {
 
-	exitIds, err := s.repo.GetExpressionsExitIds()
+	exitIds, err := s.repo.GetExpressionExitIds()
 	if err != nil {
 		return err
 	}
@@ -32,7 +32,7 @@ func (s *Service) Do(request *request) error {
 	if err != nil {
 		return orchErr.ErrIncorrectExpression
 	}
-	expr.User_id = int(request.userId)
+	expr.User_id = request.userId
 
 	err = s.repo.SaveExpressionAndNodes(expr, nodes)
 	return err

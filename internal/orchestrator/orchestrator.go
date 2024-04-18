@@ -13,6 +13,7 @@ import (
 	"github.com/Gandalf-Rus/distributed-calc2.0/internal/middlewares"
 	"github.com/Gandalf-Rus/distributed-calc2.0/internal/storage"
 	loginuser "github.com/Gandalf-Rus/distributed-calc2.0/internal/use_cases/login_user"
+	postexpression "github.com/Gandalf-Rus/distributed-calc2.0/internal/use_cases/post_expression"
 	registrateuser "github.com/Gandalf-Rus/distributed-calc2.0/internal/use_cases/registrate_user"
 	"github.com/gorilla/mux"
 )
@@ -47,11 +48,13 @@ func New(ctx context.Context) (*Orchestrator, error) {
 
 	registerHandler := http.HandlerFunc(registrateuser.MakeHandler(registrateuser.NewSvc(repo)))
 	loginHandler := http.HandlerFunc(loginuser.MakeHandler(loginuser.NewSvc(repo)))
+	postExpressionHandler := http.HandlerFunc(postexpression.MakeHandler(postexpression.NewSvc(repo)))
 
 	apiRouter := mux.NewRouter().PathPrefix("/api").Subrouter()
 	apiRouter.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) { w.Write([]byte("hi")) }).Methods("GET")
 	apiRouter.HandleFunc("/register", registerHandler).Methods("POST")
 	apiRouter.HandleFunc("/login", loginHandler).Methods("POST")
+	apiRouter.HandleFunc("/expression", postExpressionHandler).Methods("POST")
 
 	router.PathPrefix("/api").Handler(apiRouter)
 

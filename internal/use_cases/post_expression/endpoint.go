@@ -20,9 +20,10 @@ func MakeHandler(s *Service) func(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		tokenString = tokenString[len("Bearer "):]
+		logger.Logger.Info(tokenString)
 		userId, err := jwt.CheckTokenAndGetUserID(tokenString)
 		if err != nil {
-			if err := jsonUtils.RespondWith401(w, "Authorization header is empty"); err != nil {
+			if err := jsonUtils.RespondWith401(w, err.Error()); err != nil {
 				logger.Slogger.Error(err)
 			}
 			return

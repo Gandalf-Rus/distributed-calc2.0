@@ -5,6 +5,6 @@ import (
 )
 
 type repo interface {
-	GetExpressionsExitIds() ([]string, error)
-	SaveExpressionAndNodes(Expression expression.Expression, nodes []*expression.Node) error
+	GetExpressionExitIds() ([]string, error)
+	SaveExpressionAndNodes(expr expression.Expression, nodes []*expression.Node) error
 }

@@ -6,7 +6,10 @@ import (
 
 	"github.com/Gandalf-Rus/distributed-calc2.0/internal/config"
 	"github.com/Gandalf-Rus/distributed-calc2.0/internal/entities"
+	"github.com/Gandalf-Rus/distributed-calc2.0/internal/entities/expression"
+	"github.com/Gandalf-Rus/distributed-calc2.0/internal/logger"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -28,7 +31,7 @@ const (
 	reqCreateExpressionsTable = `
 	CREATE TABLE IF NOT EXISTS expressions(
 		id SERIAL PRIMARY KEY NOT NULL,
-		exit_id TEXT NOT NULL, 
+		exit_id TEXT UNIQUE NOT NULL, 
 		user_id INTEGER NOT NULL,
 		body TEXT NOT NULL,
 		result INTEGER,
@@ -40,20 +43,20 @@ const (
 
 	reqCreateNodesTable = `
 	CREATE TABLE IF NOT EXISTS nodes(
-		id SERIAL PRIMARY KEY NOT NULL,
-		expression_id INTEGER NOT NULL, 
-		parent_node_id INTEGER NOT NULL,
-		child1_node_id INTEGER NOT NULL,
-		child2_node_id INTEGER NOT NULL,
+		id             INTEGER NOT NULL,
+		expression_id  INTEGER NOT NULL, 
+		parent_node_id INTEGER,
+		child1_node_id INTEGER,
+		child2_node_id INTEGER,
 		operand1       INTEGER,
 		operand2       INTEGER,
-		operator       CHAR,
-		operatorDelay  INTEGER NOT NULL,
-		result INTEGER,
-		status TEXT,
-		message TEXT,
-		agent_id INTEGER,
-		FOREIGN KEY (expression_id) REFERENCES expressions(id)
+		operator       CHAR NOT NULL,
+		result 		   INTEGER,
+		status         TEXT,
+		message        TEXT,
+		agent_id       INTEGER,
+		FOREIGN KEY (expression_id) REFERENCES expressions(id),
+		PRIMARY KEY (id, expression_id)
 	);
 	`
 
@@ -70,6 +73,19 @@ const (
 	`
 	reqSelectExitIds = `
 	SELECT exit_id FROM expressions
+	`
+
+	reqInsertExpression = `
+	INSERT INTO expressions(exit_id, user_id, body, status)
+	values ($1, $2, $3, $4)
+	RETURNING id
+	`
+
+	reqInsertNode = `
+	INSERT INTO nodes(id, expression_id, parent_node_id, 
+		child1_node_id, child2_node_id,
+		operand1, operand2, operator, status)
+	values ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 	`
 )
 
@@ -143,7 +159,7 @@ func (s Storage) SaveToken(token entities.Token) error {
 	return nil
 }
 
-func (s Storage) GetExpressionExitIds(name string) ([]string, error) {
+func (s Storage) GetExpressionExitIds() ([]string, error) {
 	var ids []string
 
 	conn, err := connectToDB(s.ctx)
@@ -152,9 +168,40 @@ func (s Storage) GetExpressionExitIds(name string) ([]string, error) {
 	}
 	defer conn.Close()
 	row := conn.QueryRow(s.ctx, reqSelectExitIds)
-	err = row.Scan(&ids)
+	row.Scan(&ids)
 
-	return ids, err
+	return ids, nil
+}
+
+func (s Storage) SaveExpressionAndNodes(expr expression.Expression, nodes []*expression.Node) error {
+	conn, err := connectToDB(s.ctx)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	tx, err := conn.BeginTx(s.ctx, pgx.TxOptions{})
+	if err != nil {
+		return err
+	}
+
+	expressionId, err := insertExpression(s.ctx, conn, expr)
+	if err != nil {
+		tx.Rollback(s.ctx)
+		return err
+	}
+
+	for _, node := range nodes {
+		node.Expression_id = expressionId
+		if err = insertNode(s.ctx, conn, node); err != nil {
+			tx.Rollback(s.ctx)
+			return err
+		}
+		logger.Logger.Info("node socsess saved")
+	}
+	tx.Commit(s.ctx)
+
+	return nil
 }
 
 func connectToDB(ctx context.Context) (*pgxpool.Pool, error) {
@@ -201,4 +248,22 @@ func createNodesTable(ctx context.Context, conn *pgxpool.Pool) error {
 	return nil
 }
 
-//docker run -p 5432:5432 -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=distributedcalc --name distributedcalc postgres
+func insertExpression(ctx context.Context, conn *pgxpool.Pool, e expression.Expression) (int, error) {
+	logger.Logger.Info(fmt.Sprint(e.Exit_id, e.User_id, e.Body, e.Status.ToString()))
+	var id int
+	row := conn.QueryRow(ctx, reqInsertExpression, e.Exit_id, e.User_id, e.Body, e.Status.ToString())
+	err := row.Scan(&id)
+	return id, err
+}
+
+func insertNode(ctx context.Context, conn *pgxpool.Pool, n *expression.Node) error {
+	if _, err := conn.Exec(ctx, reqInsertNode, n.Id, n.Expression_id, n.Parent_node_id,
+		n.Child1_node_id, n.Child2_node_id, n.Operand1, n.Operand2, n.Operator,
+		n.Status.ToString()); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+//docker run -d -p 5432:5432 -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=distributedcalc --name distributedcalc postgres

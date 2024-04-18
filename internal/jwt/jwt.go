@@ -27,7 +27,7 @@ func CreateToken(userID int64) (string, error) {
 	return tokenString, nil
 }
 
-func CheckTokenAndGetUserID(tokenString string) (int64, error) {
+func CheckTokenAndGetUserID(tokenString string) (int, error) {
 	tokenFromString, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
@@ -41,7 +41,7 @@ func CheckTokenAndGetUserID(tokenString string) (int64, error) {
 	}
 
 	if claims, ok := tokenFromString.Claims.(jwt.MapClaims); ok {
-		return claims["userID"].(int64), nil
+		return int(claims["userID"].(float64)), nil
 	}
 
 	return -1, err
