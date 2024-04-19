@@ -14,8 +14,8 @@ import (
 
 type Expression struct {
 	Id        int
-	Exit_id   string // внешний идентификатор для идемпотентности
-	User_id   int
+	ExitId    string // внешний идентификатор для идемпотентности
+	UserId    int
 	Body      string
 	Result    *int
 	Status    Status  // (parsing, error, ready, in progress, done)
@@ -29,7 +29,7 @@ type ExprStatusInfo struct { // Вспомогательная структур�
 }
 
 func NewExpression(expr string, ext_id string) (Expression, []*Node, error) {
-	t := Expression{Body: expr, Exit_id: ext_id, treeSlice: make([]*Node, 0)}
+	t := Expression{Body: expr, ExitId: ext_id, treeSlice: make([]*Node, 0)}
 	t.SetStatus(Parsing, ExprStatusInfo{})
 
 	root := &Node{}
@@ -84,7 +84,7 @@ func (t *Expression) buildtree(parsedtree ast.Expr, parent *Node) error {
 			parent.Status = Waiting // придется вычислять операнд
 			childX := t.add(&parent.Id, &Node{})
 			errX := t.buildtree(n.X, childX)
-			parent.Child1_node_id = &childX.Id
+			parent.Child1NodeId = &childX.Id
 			if errX != nil {
 				return errX
 			}
@@ -102,7 +102,7 @@ func (t *Expression) buildtree(parsedtree ast.Expr, parent *Node) error {
 			parent.Status = Waiting // придется вычислять операнд
 			childY := t.add(&parent.Id, &Node{})
 			errY := t.buildtree(n.Y, childY)
-			parent.Child2_node_id = &childY.Id
+			parent.Child2NodeId = &childY.Id
 			if errY != nil {
 				return errY
 			}
@@ -120,10 +120,10 @@ func unsupport(i interface{}) error {
 
 func (t *Expression) add(parent_id *int, node *Node) *Node {
 	node.Id = len(t.treeSlice)
-	node.Parent_node_id = parent_id
-	node.Expression_id = t.Id
-	node.Child1_node_id = nil
-	node.Child2_node_id = nil
+	node.ParentNodeId = parent_id
+	node.ExpressionId = t.Id
+	node.Child1NodeId = nil
+	node.Child2NodeId = nil
 	t.treeSlice = append(t.treeSlice, node)
 	return node
 }

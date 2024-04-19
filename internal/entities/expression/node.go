@@ -6,18 +6,18 @@ import (
 )
 
 type Node struct {
-	Id             int
-	Expression_id  int
-	Parent_node_id *int
-	Child1_node_id *int
-	Child2_node_id *int
-	Operand1       *int
-	Operand2       *int
-	Operator       string
-	Result         *int
-	Status         Status // (parsing, "error", waiting - ждем результатов других выражений, ready - оба операнда вычислены, in progress - передано в расчет, done - есть результат)
-	Message        string
-	Agent_id       *int
+	Id           int
+	ExpressionId int
+	ParentNodeId *int
+	Child1NodeId *int
+	Child2NodeId *int
+	Operand1     *int
+	Operand2     *int
+	Operator     string
+	Result       *int
+	Status       Status // (parsing, "error", waiting - ждем результатов других выражений, ready - оба операнда вычислены, in progress - передано в расчет, done - есть результат)
+	Message      string
+	AgentId      *int
 }
 
 type NodeStatusInfo struct { // Вспомогательная структура
@@ -43,7 +43,7 @@ func (t *Expression) SetNodeStatus(node_id int, status Status, info NodeStatusIn
 			zap.String("status", status.ToString()),
 		)
 	case InProgress: // передано в расчет
-		n.Agent_id = &info.Agent_id
+		n.AgentId = &info.Agent_id
 	case Done, Error: // есть результат или ошибка
 		n.Result = &info.Result
 		n.Message = info.Message

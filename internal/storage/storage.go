@@ -192,7 +192,7 @@ func (s Storage) SaveExpressionAndNodes(expr expression.Expression, nodes []*exp
 	}
 
 	for _, node := range nodes {
-		node.Expression_id = expressionId
+		node.ExpressionId = expressionId
 		if err = insertNode(s.ctx, conn, node); err != nil {
 			tx.Rollback(s.ctx)
 			return err
@@ -249,16 +249,16 @@ func createNodesTable(ctx context.Context, conn *pgxpool.Pool) error {
 }
 
 func insertExpression(ctx context.Context, conn *pgxpool.Pool, e expression.Expression) (int, error) {
-	logger.Logger.Info(fmt.Sprint(e.Exit_id, e.User_id, e.Body, e.Status.ToString()))
+	logger.Logger.Info(fmt.Sprint(e.ExitId, e.UserId, e.Body, e.Status.ToString()))
 	var id int
-	row := conn.QueryRow(ctx, reqInsertExpression, e.Exit_id, e.User_id, e.Body, e.Status.ToString())
+	row := conn.QueryRow(ctx, reqInsertExpression, e.ExitId, e.UserId, e.Body, e.Status.ToString())
 	err := row.Scan(&id)
 	return id, err
 }
 
 func insertNode(ctx context.Context, conn *pgxpool.Pool, n *expression.Node) error {
-	if _, err := conn.Exec(ctx, reqInsertNode, n.Id, n.Expression_id, n.Parent_node_id,
-		n.Child1_node_id, n.Child2_node_id, n.Operand1, n.Operand2, n.Operator,
+	if _, err := conn.Exec(ctx, reqInsertNode, n.Id, n.ExpressionId, n.ParentNodeId,
+		n.Child1NodeId, n.Child2NodeId, n.Operand1, n.Operand2, n.Operator,
 		n.Status.ToString()); err != nil {
 		return err
 	}

@@ -1,0 +1,46 @@
+syntax = "proto3";
+package node;
+option go_package = "github.com/Gandalf-Rus/distributed-calc2.0/proto";
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/struct.proto";
+
+message Node {
+    int32 id = 1;
+    int32 expressionId = 2;
+    NullableInt parentNodeId = 3;
+	NullableInt child1NodeId = 4;
+	NullableInt child2NodeId = 5;
+	NullableInt operand1 = 6;
+	NullableInt operand2 = 7;
+	string operator = 8;
+	NullableInt result = 9;
+	string status = 10;
+	string message = 11;
+	NullableInt agentId = 12;
+}
+
+message NullableInt {
+    oneof kind {
+        google.protobuf.NullValue null = 1;
+        int32 data = 2;
+    }
+}
+
+message GetNodesRequest {
+    int32 agentId = 1;
+    int32 freeWorkers = 2;
+}
+
+message GetNodesResponse {
+    repeated Node nodes = 1;
+}
+
+message EditNodeRequest {
+    Node node = 1;
+}
+
+service NodeService {
+    rpc GetNodes (GetNodesRequest) returns (GetNodesResponse); 
+    rpc EditNode (EditNodeRequest) returns (google.protobuf.Empty);
+}
