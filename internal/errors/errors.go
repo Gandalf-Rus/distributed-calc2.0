@@ -10,4 +10,6 @@ var (
 
 	ErrExistingExpression  = errors.New("expression with this exit id already exist")
 	ErrIncorrectExpression = errors.New("incorrect expression")
+
+	ErrInternalServerError = errors.New("internal server error")
 )

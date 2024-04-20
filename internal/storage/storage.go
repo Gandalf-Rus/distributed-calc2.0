@@ -71,6 +71,11 @@ const (
 	reqInsertToken = `
 	INSERT INTO tokens (body) values ($1)
 	`
+
+	reqSelectTokens = `
+	SELECT body FROM tokens
+	`
+
 	reqSelectExitIds = `
 	SELECT exit_id FROM expressions
 	`
@@ -167,10 +172,34 @@ func (s Storage) GetExpressionExitIds() ([]string, error) {
 		return ids, err
 	}
 	defer conn.Close()
-	row := conn.QueryRow(s.ctx, reqSelectExitIds)
-	row.Scan(&ids)
+	rows, err := conn.Query(s.ctx, reqSelectExitIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
 
-	return ids, nil
+	ids, err = rowsToSlice[string](rows)
+
+	return ids, err
+}
+
+func (s Storage) GetTokens() ([]string, error) {
+	var tokens []string
+	conn, err := connectToDB(s.ctx)
+	if err != nil {
+		return tokens, err
+	}
+	defer conn.Close()
+
+	rows, err := conn.Query(s.ctx, reqSelectTokens)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	tokens, err = rowsToSlice[string](rows)
+
+	return tokens, err
 }
 
 func (s Storage) SaveExpressionAndNodes(expr expression.Expression, nodes []*expression.Node) error {
@@ -264,6 +293,22 @@ func insertNode(ctx context.Context, conn *pgxpool.Pool, n *expression.Node) err
 	}
 
 	return nil
+}
+
+func rowsToSlice[T any](rows pgx.Rows) ([]T, error) {
+	var resultSlice []T
+	for rows.Next() {
+		var element T
+		if err := rows.Scan(&element); err != nil {
+			return resultSlice, err
+		}
+		resultSlice = append(resultSlice, element)
+	}
+
+	if err := rows.Err(); err != nil {
+		return resultSlice, err
+	}
+	return resultSlice, nil
 }
 
 //docker run -d -p 5432:5432 -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=distributedcalc --name distributedcalc postgres

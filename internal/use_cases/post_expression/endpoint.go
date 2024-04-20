@@ -3,6 +3,7 @@ package postexpression
 import (
 	"errors"
 	"net/http"
+	"slices"
 
 	orchErrors "github.com/Gandalf-Rus/distributed-calc2.0/internal/errors"
 	"github.com/Gandalf-Rus/distributed-calc2.0/internal/jsonUtils"
@@ -20,7 +21,20 @@ func MakeHandler(s *Service) func(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		tokenString = tokenString[len("Bearer "):]
-		logger.Logger.Info(tokenString)
+		tokens, err := s.repo.GetTokens()
+		if err != nil {
+			if err = jsonUtils.RespondWith500(w); err != nil {
+				logger.Slogger.Error(err)
+			}
+			return
+		}
+		if !slices.Contains(tokens, tokenString) {
+			if err = jsonUtils.RespondWith401(w, "forged or unexist JWT-token"); err != nil {
+				logger.Slogger.Error(err)
+			}
+			return
+		}
+
 		userId, err := jwt.CheckTokenAndGetUserID(tokenString)
 		if err != nil {
 			if err := jsonUtils.RespondWith401(w, err.Error()); err != nil {
