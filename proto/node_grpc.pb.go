@@ -20,8 +20,9 @@ import (
 const _ = grpc.SupportPackageIsVersion7
 
 const (
-	NodeService_GetNodes_FullMethodName = "/node.NodeService/GetNodes"
-	NodeService_EditNode_FullMethodName = "/node.NodeService/EditNode"
+	NodeService_GetNodes_FullMethodName      = "/node.NodeService/GetNodes"
+	NodeService_EditNode_FullMethodName      = "/node.NodeService/EditNode"
+	NodeService_TakeHeartBeat_FullMethodName = "/node.NodeService/TakeHeartBeat"
 )
 
 // NodeServiceClient is the client API for NodeService service.
@@ -30,6 +31,7 @@ const (
 type NodeServiceClient interface {
 	GetNodes(ctx context.Context, in *GetNodesRequest, opts ...grpc.CallOption) (*GetNodesResponse, error)
 	EditNode(ctx context.Context, in *EditNodeRequest, opts ...grpc.CallOption) (*empty.Empty, error)
+	TakeHeartBeat(ctx context.Context, in *EditNodeRequest, opts ...grpc.CallOption) (*empty.Empty, error)
 }
 
 type nodeServiceClient struct {
@@ -58,12 +60,22 @@ func (c *nodeServiceClient) EditNode(ctx context.Context, in *EditNodeRequest, o
 	return out, nil
 }
 
+func (c *nodeServiceClient) TakeHeartBeat(ctx context.Context, in *EditNodeRequest, opts ...grpc.CallOption) (*empty.Empty, error) {
+	out := new(empty.Empty)
+	err := c.cc.Invoke(ctx, NodeService_TakeHeartBeat_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // NodeServiceServer is the server API for NodeService service.
 // All implementations must embed UnimplementedNodeServiceServer
 // for forward compatibility
 type NodeServiceServer interface {
 	GetNodes(context.Context, *GetNodesRequest) (*GetNodesResponse, error)
 	EditNode(context.Context, *EditNodeRequest) (*empty.Empty, error)
+	TakeHeartBeat(context.Context, *EditNodeRequest) (*empty.Empty, error)
 	mustEmbedUnimplementedNodeServiceServer()
 }
 
@@ -76,6 +88,9 @@ func (UnimplementedNodeServiceServer) GetNodes(context.Context, *GetNodesRequest
 }
 func (UnimplementedNodeServiceServer) EditNode(context.Context, *EditNodeRequest) (*empty.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method EditNode not implemented")
+}
+func (UnimplementedNodeServiceServer) TakeHeartBeat(context.Context, *EditNodeRequest) (*empty.Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method TakeHeartBeat not implemented")
 }
 func (UnimplementedNodeServiceServer) mustEmbedUnimplementedNodeServiceServer() {}
 
@@ -126,6 +141,24 @@ func _NodeService_EditNode_Handler(srv interface{}, ctx context.Context, dec fun
 	return interceptor(ctx, in, info, handler)
 }
 
+func _NodeService_TakeHeartBeat_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(EditNodeRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NodeServiceServer).TakeHeartBeat(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: NodeService_TakeHeartBeat_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NodeServiceServer).TakeHeartBeat(ctx, req.(*EditNodeRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // NodeService_ServiceDesc is the grpc.ServiceDesc for NodeService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -140,6 +173,10 @@ var NodeService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "EditNode",
 			Handler:    _NodeService_EditNode_Handler,
+		},
+		{
+			MethodName: "TakeHeartBeat",
+			Handler:    _NodeService_TakeHeartBeat_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
