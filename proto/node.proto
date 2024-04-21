@@ -38,5 +38,5 @@ message TakeHeartBeatRequest {
 service NodeService {
     rpc GetNodes (GetNodesRequest) returns (GetNodesResponse); 
     rpc EditNode (EditNodeRequest) returns (google.protobuf.Empty);
-    rpc TakeHeartBeat (EditNodeRequest) returns (google.protobuf.Empty);
+    rpc TakeHeartBeat (GetNodesRequest) returns (google.protobuf.Empty);
 }

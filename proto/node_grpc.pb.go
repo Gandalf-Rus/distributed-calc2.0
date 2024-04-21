@@ -31,7 +31,7 @@ const (
 type NodeServiceClient interface {
 	GetNodes(ctx context.Context, in *GetNodesRequest, opts ...grpc.CallOption) (*GetNodesResponse, error)
 	EditNode(ctx context.Context, in *EditNodeRequest, opts ...grpc.CallOption) (*empty.Empty, error)
-	TakeHeartBeat(ctx context.Context, in *EditNodeRequest, opts ...grpc.CallOption) (*empty.Empty, error)
+	TakeHeartBeat(ctx context.Context, in *GetNodesRequest, opts ...grpc.CallOption) (*empty.Empty, error)
 }
 
 type nodeServiceClient struct {
@@ -60,7 +60,7 @@ func (c *nodeServiceClient) EditNode(ctx context.Context, in *EditNodeRequest, o
 	return out, nil
 }
 
-func (c *nodeServiceClient) TakeHeartBeat(ctx context.Context, in *EditNodeRequest, opts ...grpc.CallOption) (*empty.Empty, error) {
+func (c *nodeServiceClient) TakeHeartBeat(ctx context.Context, in *GetNodesRequest, opts ...grpc.CallOption) (*empty.Empty, error) {
 	out := new(empty.Empty)
 	err := c.cc.Invoke(ctx, NodeService_TakeHeartBeat_FullMethodName, in, out, opts...)
 	if err != nil {
@@ -75,7 +75,7 @@ func (c *nodeServiceClient) TakeHeartBeat(ctx context.Context, in *EditNodeReque
 type NodeServiceServer interface {
 	GetNodes(context.Context, *GetNodesRequest) (*GetNodesResponse, error)
 	EditNode(context.Context, *EditNodeRequest) (*empty.Empty, error)
-	TakeHeartBeat(context.Context, *EditNodeRequest) (*empty.Empty, error)
+	TakeHeartBeat(context.Context, *GetNodesRequest) (*empty.Empty, error)
 	mustEmbedUnimplementedNodeServiceServer()
 }
 
@@ -89,7 +89,7 @@ func (UnimplementedNodeServiceServer) GetNodes(context.Context, *GetNodesRequest
 func (UnimplementedNodeServiceServer) EditNode(context.Context, *EditNodeRequest) (*empty.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method EditNode not implemented")
 }
-func (UnimplementedNodeServiceServer) TakeHeartBeat(context.Context, *EditNodeRequest) (*empty.Empty, error) {
+func (UnimplementedNodeServiceServer) TakeHeartBeat(context.Context, *GetNodesRequest) (*empty.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method TakeHeartBeat not implemented")
 }
 func (UnimplementedNodeServiceServer) mustEmbedUnimplementedNodeServiceServer() {}
@@ -142,7 +142,7 @@ func _NodeService_EditNode_Handler(srv interface{}, ctx context.Context, dec fun
 }
 
 func _NodeService_TakeHeartBeat_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(EditNodeRequest)
+	in := new(GetNodesRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -154,7 +154,7 @@ func _NodeService_TakeHeartBeat_Handler(srv interface{}, ctx context.Context, de
 		FullMethod: NodeService_TakeHeartBeat_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(NodeServiceServer).TakeHeartBeat(ctx, req.(*EditNodeRequest))
+		return srv.(NodeServiceServer).TakeHeartBeat(ctx, req.(*GetNodesRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
