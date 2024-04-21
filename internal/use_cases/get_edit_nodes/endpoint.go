@@ -55,5 +55,9 @@ func (s *Server) TakeHeartBeat(ctx context.Context, in *pb.GetNodesRequest) (*em
 }
 
 func (s *Server) EditNode(ctx context.Context, in *pb.EditNodeRequest) (*empty.Empty, error) {
+	node := grpcconversion.GrpcNodeToNode(in.Node)
+	if err := s.repo.EditNode(node); err != nil {
+		return nil, err
+	}
 	return nil, nil
 }

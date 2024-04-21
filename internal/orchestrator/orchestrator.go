@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/Gandalf-Rus/distributed-calc2.0/internal/agent"
 	"github.com/Gandalf-Rus/distributed-calc2.0/internal/config"
 	l "github.com/Gandalf-Rus/distributed-calc2.0/internal/logger"
 	"github.com/Gandalf-Rus/distributed-calc2.0/internal/middlewares"
@@ -37,14 +38,17 @@ func New(ctx context.Context) (*Orchestrator, error) {
 	orch := new(Orchestrator)
 	router := mux.NewRouter()
 
+	// загрузка конфига
 	l.Logger.Info("initializing config...")
 	err := config.InitConfig()
 	if err != nil {
 		return nil, fmt.Errorf("failed to read config: %w", err)
 	}
 
+	//привязываем мидлвейр
 	router.Use(middlewares.LoggingMiddleware)
 
+	// иницилизируем структуру для работы с базой
 	repo, err := storage.New(ctx)
 	l.Logger.Info("DB tables initialization...")
 	if err != nil {
@@ -52,11 +56,13 @@ func New(ctx context.Context) (*Orchestrator, error) {
 		return nil, err
 	}
 
+	// если в базе нет таблиц, создадим их
 	if err := repo.CreateTablesIfNotExist(); err != nil {
 		return nil, err
 	}
 	l.Logger.Info("DB initialization succeeds")
 
+	// подключение хендлеров к путям
 	registerHandler := http.HandlerFunc(registrateuser.MakeHandler(registrateuser.NewSvc(&repo)))
 	loginHandler := http.HandlerFunc(loginuser.MakeHandler(loginuser.NewSvc(&repo)))
 	postExpressionHandler := http.HandlerFunc(postexpression.MakeHandler(postexpression.NewSvc(&repo)))
@@ -69,6 +75,7 @@ func New(ctx context.Context) (*Orchestrator, error) {
 
 	router.PathPrefix("/api").Handler(apiRouter)
 
+	// http сервер
 	orch.server = &http.Server{
 		Handler:      router,
 		Addr:         ":" + strconv.Itoa(config.Cfg.ServerPort),
@@ -76,10 +83,15 @@ func New(ctx context.Context) (*Orchestrator, error) {
 		ReadTimeout:  defaultHTTPServerReadTimeout,
 	}
 
+	// grpc сервер
 	orch.grpcServer = grpc.NewServer()
 	nodeServiceServer := geteditnodes.NewServer(&repo)
 	proto.RegisterNodeServiceServer(orch.grpcServer, nodeServiceServer)
 
+	// зачистка пропавших агентов
+	agent.LostAgentCollector(&repo)
+
+	// передаем структуру для работы с БД чтоб в конце закрыть подключение
 	orch.repo = &repo
 
 	return orch, nil
@@ -123,7 +135,7 @@ func (o *Orchestrator) stop(ctx context.Context) error {
 
 func (o *Orchestrator) GracefulStop(serverCtx context.Context, sig <-chan os.Signal, serverStopCtx context.CancelFunc) {
 	<-sig
-	var timeOut = 30 * time.Second
+	var timeOut = 1 * time.Second
 	shutdownCtx, shutdownStopCtx := context.WithTimeout(serverCtx, timeOut)
 
 	go func() {

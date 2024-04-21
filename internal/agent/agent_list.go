@@ -32,7 +32,7 @@ func TakeHeartBeat(agentId string) {
 }
 
 // Удаляем пропавших агентов
-func CleanLostAgents(repo repo) {
+func cleanLostAgents(repo repo) {
 	for id, a := range agents {
 		if time.Since(a.LastSeen) > config.Cfg.AgentLostTimeout {
 			logger.Logger.Info("Agent lost",
@@ -41,18 +41,21 @@ func CleanLostAgents(repo repo) {
 				zap.Int("timeout sec", int(config.Cfg.AgentLostTimeout)),
 			)
 
-			repo.ReleaseAgentUnfinishedNodes(id)
+			if err := repo.ReleaseAgentUnfinishedNodes(id); err != nil {
+				logger.Slogger.Error(err)
+			}
 			delete(agents, id)
 		}
 	}
 }
 
+// Зачистка пропавших агентов (которые давно не выходили на связь)
 func LostAgentCollector(repo repo) {
-	tick := time.NewTicker(time.Second * time.Duration(config.Cfg.AgentLostTimeout))
+	tick := time.NewTicker(config.Cfg.AgentLostTimeout)
 	go func() {
 		for range tick.C {
 			// таймер прозвенел
-			CleanLostAgents(repo)
+			cleanLostAgents(repo)
 		}
 	}()
 }

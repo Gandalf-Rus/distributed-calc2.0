@@ -1,5 +1,5 @@
 package agent
 
 type repo interface {
-	ReleaseAgentUnfinishedNodes(agentId string)
+	ReleaseAgentUnfinishedNodes(agentId string) error
 }

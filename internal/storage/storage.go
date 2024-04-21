@@ -99,6 +99,15 @@ const (
 	WHERE id IN (SELECT id FROM nodes WHERE status='ready' LIMIT $3)
 	RETURNING *
 	`
+
+	reqReleaseNodes = `
+	UPDATE nodes SET status='ready', agent_id=NULL WHERE agent_id=$1
+	`
+
+	reqUpdateNode = `
+	UPDATE nodes SET result=$1, status=$2, message=$3, agent_id=NULL 
+	WHERE node_id=$4 AND expression_id=$5
+	`
 )
 
 type Storage struct {
@@ -265,6 +274,21 @@ func (s *Storage) EditNodesStatusAndGetReadyNodes(agentId string, count int) ([]
 }
 
 func (s *Storage) EditNode(node *expression.Node) error {
+	_, err := s.connPool.Query(s.ctx, reqUpdateNode,
+		node.Result, node.Status.ToString(), node.Message, node.NodeId, node.ExpressionId)
+
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// agent
+
+func (s *Storage) ReleaseAgentUnfinishedNodes(agentId string) error {
+	if _, err := s.connPool.Exec(s.ctx, reqReleaseNodes, agentId); err != nil {
+		return err
+	}
 	return nil
 }
 

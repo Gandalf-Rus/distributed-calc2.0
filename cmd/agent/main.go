@@ -1,6 +1,11 @@
 package main
 
 import (
+	"context"
+	"os"
+	"os/signal"
+
+	"github.com/Gandalf-Rus/distributed-calc2.0/internal/agent"
 	l "github.com/Gandalf-Rus/distributed-calc2.0/internal/logger"
 )
 
@@ -8,27 +13,19 @@ func main() {
 	l.InitLogger()
 	defer l.Logger.Sync()
 
-	// a, _ := agent.New()
-	// a.Run()
+	agentCtx, agentStopCtx := context.WithCancel(context.Background())
 
-	// host := "localhost"
-	// port := "5000"
+	a := agent.New(agentCtx, agentStopCtx)
+	go func() {
+		a.Run()
+	}()
 
-	// addr := fmt.Sprintf("%s:%s", host, port) // используем адрес сервера
-	// // установим соединение
-	// conn, err := grpc.Dial(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
 
-	// if err != nil {
-	// 	log.Println("could not connect to grpc server: ", err)
-	// 	os.Exit(1)
-	// }
-	// // закроем соединение, когда выйдем из функции
-	// defer conn.Close()
+	<-c
+	a.CtxCancelFunc()
+	l.Logger.Info("Exit on ctrl+C signal")
 
-	// grpcClient := proto.NewNodeServiceClient(conn)
-	// nodes, err := grpcClient.GetNodes(context.Background(), &proto.GetNodesRequest{
-	// 	AgentId:     1,
-	// 	FreeWorkers: 3,
-	// })
-	// fmt.Printf("%v\n%v", nodes, err)
+	<-agentCtx.Done()
 }
