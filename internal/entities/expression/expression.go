@@ -163,27 +163,4 @@ func (t *Expression) SetStatus(status Status, info ExprStatusInfo) {
 			zap.String("message", info.Message),
 		)
 	}
-
-	////t.SaveTask()
 }
-
-// // выбираем ожидающую операцию и переводим ее в процесс
-// func (t *Expression) GetWaitingNodeAndSetProcess(agent_id string) (*Node, bool) {
-// 	for _, n := range t.TreeSlice {
-// 		ret := false
-// 		func() {
-// 			t.mx.Lock()
-// 			defer t.mx.Unlock()
-// 			// тут мы 100% одни
-// 			if n.Status == "ready" {
-// 				////n.SetToProcess(agent_id)
-// 				ret = true
-// 			}
-// 		}()
-// 		if ret {
-// 			return n, true
-// 		}
-// 	}
-// 	// нет операций готовых к вычислению
-// 	return nil, false
-// }

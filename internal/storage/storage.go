@@ -56,7 +56,7 @@ const (
 		result 		   INTEGER,
 		status         TEXT NOT NULL,
 		message        TEXT,
-		agent_id       INTEGER,
+		agent_id       TEXT,
 		FOREIGN KEY (expression_id) REFERENCES expressions(id)
 	);
 	`
@@ -226,7 +226,7 @@ func (s *Storage) SaveExpressionAndNodes(expr expression.Expression, nodes []*ex
 
 // get edit nodes
 
-func (s *Storage) EditNodesStatusAndGetReadyNodes(agentId int, count int) ([]*expression.Node, error) {
+func (s *Storage) EditNodesStatusAndGetReadyNodes(agentId string, count int) ([]*expression.Node, error) {
 	tx, err := s.connPool.BeginTx(s.ctx, pgx.TxOptions{})
 	if err != nil {
 		return nil, err

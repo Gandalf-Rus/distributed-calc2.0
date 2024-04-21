@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/Gandalf-Rus/distributed-calc2.0/internal/config"
@@ -8,20 +9,40 @@ import (
 	"go.uber.org/zap"
 )
 
-var Agents map[int]Agent = make(map[int]Agent)
+type agent struct {
+	LastSeen time.Time
+}
+
+var agents map[string]*agent = make(map[string]*agent)
+
+func RegistrateAgent(agentId string) {
+	agents[agentId] = &agent{
+		LastSeen: time.Now(),
+	}
+	logger.Logger.Info(fmt.Sprintf("%v", agents))
+}
+
+func IsAgent(agentId string) bool {
+	_, found := agents[agentId]
+	return found
+}
+
+func TakeHeartBeat(agentId string) {
+	agents[agentId].LastSeen = time.Now()
+}
 
 // Удаляем пропавших агентов
 func CleanLostAgents(repo repo) {
-	for _, a := range Agents {
+	for id, a := range agents {
 		if time.Since(a.LastSeen) > config.Cfg.AgentLostTimeout {
 			logger.Logger.Info("Agent lost",
-				zap.Int("agent_id", a.AgentId),
+				zap.String("agent_id", id),
 				zap.Time("Last seen", a.LastSeen),
 				zap.Int("timeout sec", int(config.Cfg.AgentLostTimeout)),
 			)
 
-			repo.ReleaseAgentUnfinishedNodes(a.AgentId)
-			delete(Agents, a.AgentId)
+			repo.ReleaseAgentUnfinishedNodes(id)
+			delete(agents, id)
 		}
 	}
 }
