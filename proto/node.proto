@@ -16,6 +16,13 @@ message Node {
 	string message = 9;
 }
 
+message Durations {
+    int32 Add = 1;
+    int32 Sub = 2;
+    int32 Mul = 3;
+    int32 Div = 4;
+}
+
 message GetNodesRequest {
     string agentId = 1;
     int32 freeWorkers = 2;
@@ -23,6 +30,7 @@ message GetNodesRequest {
 
 message GetNodesResponse {
     repeated Node nodes = 1;
+    Durations opDurations = 2;
 }
 
 message EditNodeRequest {
