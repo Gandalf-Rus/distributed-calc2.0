@@ -17,7 +17,7 @@ message Node {
 }
 
 message GetNodesRequest {
-    int32 agentId = 1;
+    string agentId = 1;
     int32 freeWorkers = 2;
 }
 
@@ -26,12 +26,12 @@ message GetNodesResponse {
 }
 
 message EditNodeRequest {
-    int32 agentId = 1;
+    string agentId = 1;
     Node node = 2;
 }
 
 message TakeHeartBeatRequest {
-    int32 agentId = 1;
+    string agentId = 1;
     Node node = 2;
 }
 
