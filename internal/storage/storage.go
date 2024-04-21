@@ -3,6 +3,7 @@ package storage
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	"github.com/Gandalf-Rus/distributed-calc2.0/internal/config"
 	"github.com/Gandalf-Rus/distributed-calc2.0/internal/entities"
@@ -43,7 +44,8 @@ const (
 
 	reqCreateNodesTable = `
 	CREATE TABLE IF NOT EXISTS nodes(
-		id             INTEGER NOT NULL,
+		id             SERIAL PRIMARY KEY NOT NULL,
+		node_id		   INTEGER NOT NULL,
 		expression_id  INTEGER NOT NULL, 
 		parent_node_id INTEGER,
 		child1_node_id INTEGER,
@@ -52,11 +54,10 @@ const (
 		operand2       INTEGER,
 		operator       CHAR NOT NULL,
 		result 		   INTEGER,
-		status         TEXT,
+		status         TEXT NOT NULL,
 		message        TEXT,
 		agent_id       INTEGER,
-		FOREIGN KEY (expression_id) REFERENCES expressions(id),
-		PRIMARY KEY (id, expression_id)
+		FOREIGN KEY (expression_id) REFERENCES expressions(id)
 	);
 	`
 
@@ -87,153 +88,26 @@ const (
 	`
 
 	reqInsertNode = `
-	INSERT INTO nodes(id, expression_id, parent_node_id, 
+	INSERT INTO nodes(node_id, expression_id, parent_node_id, 
 		child1_node_id, child2_node_id,
 		operand1, operand2, operator, status)
 	values ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 	`
+
+	reqUpdateAndGetNodes = `
+	UPDATE nodes SET status=$1, agent_id=$2
+	WHERE id IN (SELECT id FROM nodes WHERE status='ready' LIMIT $3)
+	RETURNING *
+	`
 )
 
 type Storage struct {
-	ctx context.Context
+	ctx           context.Context
+	connPool      *pgxpool.Pool
+	closeConnOnce sync.Once
 }
 
-func New(ctx context.Context) Storage {
-	return Storage{
-		ctx: ctx,
-	}
-}
-
-func (s Storage) CreateTablesIfNotExist() error {
-	conn, err := connectToDB(s.ctx)
-	if err != nil {
-		return err
-	}
-	defer conn.Close()
-	if err = createUsersTable(s.ctx, conn); err != nil {
-		return err
-	}
-	if err = createTokensTable(s.ctx, conn); err != nil {
-		return err
-	}
-	if err = createExpressionsTable(s.ctx, conn); err != nil {
-		return err
-	}
-	if err = createNodesTable(s.ctx, conn); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (s Storage) SaveUser(user entities.User) error {
-	conn, err := connectToDB(s.ctx)
-	if err != nil {
-		return err
-	}
-	defer conn.Close()
-	if _, err := conn.Exec(s.ctx, reqInsertUser, user.Name, user.Password); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (s Storage) GetUser(name string) (entities.User, error) {
-	var user entities.User
-
-	conn, err := connectToDB(s.ctx)
-	if err != nil {
-		return user, err
-	}
-	defer conn.Close()
-	row := conn.QueryRow(s.ctx, reqSelectUserByName, name)
-	err = row.Scan(&user.ID, &user.Name, &user.Password)
-
-	return user, err
-}
-
-func (s Storage) SaveToken(token entities.Token) error {
-	conn, err := connectToDB(s.ctx)
-	if err != nil {
-		return err
-	}
-	defer conn.Close()
-	if _, err := conn.Exec(s.ctx, reqInsertToken, token.Body); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (s Storage) GetExpressionExitIds() ([]string, error) {
-	var ids []string
-
-	conn, err := connectToDB(s.ctx)
-	if err != nil {
-		return ids, err
-	}
-	defer conn.Close()
-	rows, err := conn.Query(s.ctx, reqSelectExitIds)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	ids, err = rowsToSlice[string](rows)
-
-	return ids, err
-}
-
-func (s Storage) GetTokens() ([]string, error) {
-	var tokens []string
-	conn, err := connectToDB(s.ctx)
-	if err != nil {
-		return tokens, err
-	}
-	defer conn.Close()
-
-	rows, err := conn.Query(s.ctx, reqSelectTokens)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	tokens, err = rowsToSlice[string](rows)
-
-	return tokens, err
-}
-
-func (s Storage) SaveExpressionAndNodes(expr expression.Expression, nodes []*expression.Node) error {
-	conn, err := connectToDB(s.ctx)
-	if err != nil {
-		return err
-	}
-	defer conn.Close()
-
-	tx, err := conn.BeginTx(s.ctx, pgx.TxOptions{})
-	if err != nil {
-		return err
-	}
-
-	expressionId, err := insertExpression(s.ctx, conn, expr)
-	if err != nil {
-		tx.Rollback(s.ctx)
-		return err
-	}
-
-	for _, node := range nodes {
-		node.ExpressionId = expressionId
-		if err = insertNode(s.ctx, conn, node); err != nil {
-			tx.Rollback(s.ctx)
-			return err
-		}
-		logger.Logger.Info("node socsess saved")
-	}
-	tx.Commit(s.ctx)
-
-	return nil
-}
-
-func connectToDB(ctx context.Context) (*pgxpool.Pool, error) {
+func New(ctx context.Context) (Storage, error) {
 	var dbURL string = fmt.Sprintf("postgresql://%s:%s@%s:%d/%s",
 		config.Cfg.Dbuser,
 		config.Cfg.Dbpassword,
@@ -244,10 +118,159 @@ func connectToDB(ctx context.Context) (*pgxpool.Pool, error) {
 
 	conn, err := pgxpool.New(ctx, dbURL)
 	if err != nil {
+		return Storage{}, err
+	}
+
+	return Storage{
+		ctx:           ctx,
+		connPool:      conn,
+		closeConnOnce: sync.Once{},
+	}, nil
+}
+
+func (s *Storage) ClosePoolConn() {
+	s.closeConnOnce.Do(s.connPool.Close)
+}
+
+func (s *Storage) CreateTablesIfNotExist() error {
+	if err := createUsersTable(s.ctx, s.connPool); err != nil {
+		return err
+	}
+	if err := createTokensTable(s.ctx, s.connPool); err != nil {
+		return err
+	}
+	if err := createExpressionsTable(s.ctx, s.connPool); err != nil {
+		return err
+	}
+	if err := createNodesTable(s.ctx, s.connPool); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *Storage) SaveUser(user entities.User) error {
+	if _, err := s.connPool.Exec(s.ctx, reqInsertUser, user.Name, user.Password); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *Storage) GetUser(name string) (entities.User, error) {
+	var user entities.User
+
+	row := s.connPool.QueryRow(s.ctx, reqSelectUserByName, name)
+	err := row.Scan(&user.ID, &user.Name, &user.Password)
+
+	return user, err
+}
+
+func (s *Storage) SaveToken(token entities.Token) error {
+	if _, err := s.connPool.Exec(s.ctx, reqInsertToken, token.Body); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *Storage) GetExpressionExitIds() ([]string, error) {
+	var ids []string
+
+	rows, err := s.connPool.Query(s.ctx, reqSelectExitIds)
+	if err != nil {
 		return nil, err
 	}
-	return conn, nil
+	defer rows.Close()
+
+	ids, err = rowsToSlice[string](rows)
+
+	return ids, err
 }
+
+func (s *Storage) GetTokens() ([]string, error) {
+	var tokens []string
+
+	rows, err := s.connPool.Query(s.ctx, reqSelectTokens)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	tokens, err = rowsToSlice[string](rows)
+
+	return tokens, err
+}
+
+func (s *Storage) SaveExpressionAndNodes(expr expression.Expression, nodes []*expression.Node) error {
+	tx, err := s.connPool.BeginTx(s.ctx, pgx.TxOptions{})
+	if err != nil {
+		return err
+	}
+
+	expressionId, err := insertExpression(s.ctx, s.connPool, expr)
+	if err != nil {
+		tx.Rollback(s.ctx)
+		return err
+	}
+
+	for _, node := range nodes {
+		node.ExpressionId = expressionId
+		if err = insertNode(s.ctx, s.connPool, node); err != nil {
+			tx.Rollback(s.ctx)
+			return err
+		}
+	}
+	tx.Commit(s.ctx)
+
+	return nil
+}
+
+// get edit nodes
+
+func (s *Storage) EditNodesStatusAndGetReadyNodes(agentId int, count int) ([]*expression.Node, error) {
+	tx, err := s.connPool.BeginTx(s.ctx, pgx.TxOptions{})
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback(s.ctx)
+
+	rows, err := s.connPool.Query(s.ctx, reqUpdateAndGetNodes, expression.Status.ToString(expression.InProgress), agentId, count)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var nodes []*expression.Node
+	var n expression.Node
+	var status, message *string
+	for rows.Next() {
+		err = rows.Scan(&n.Id, &n.NodeId,
+			&n.ExpressionId, &n.ParentNodeId,
+			&n.Child1NodeId, &n.Child2NodeId,
+			&n.Operand1, &n.Operand2,
+			&n.Operator, &n.Result,
+			&status, &message, &n.AgentId)
+		if err != nil {
+			return nodes, err
+		}
+		n.Status = expression.ToStatus(*status)
+		nodes = append(nodes, &n)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nodes, err
+	}
+
+	tx.Commit(s.ctx)
+	return nodes, nil
+}
+
+func (s *Storage) EditNode(node *expression.Node) error {
+	return nil
+}
+
+//
+// internal methods
+//
 
 func createUsersTable(ctx context.Context, conn *pgxpool.Pool) error {
 	if _, err := conn.Exec(ctx, reqCreateUserTable); err != nil {
@@ -286,7 +309,7 @@ func insertExpression(ctx context.Context, conn *pgxpool.Pool, e expression.Expr
 }
 
 func insertNode(ctx context.Context, conn *pgxpool.Pool, n *expression.Node) error {
-	if _, err := conn.Exec(ctx, reqInsertNode, n.Id, n.ExpressionId, n.ParentNodeId,
+	if _, err := conn.Exec(ctx, reqInsertNode, n.NodeId, n.ExpressionId, n.ParentNodeId,
 		n.Child1NodeId, n.Child2NodeId, n.Operand1, n.Operand2, n.Operator,
 		n.Status.ToString()); err != nil {
 		return err

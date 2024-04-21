@@ -4,6 +4,8 @@ import (
 	"context"
 
 	"github.com/Gandalf-Rus/distributed-calc2.0/internal/errors"
+	grpcconversion "github.com/Gandalf-Rus/distributed-calc2.0/internal/grpc_conversion"
+	"github.com/Gandalf-Rus/distributed-calc2.0/internal/logger"
 	pb "github.com/Gandalf-Rus/distributed-calc2.0/proto"
 	"github.com/golang/protobuf/ptypes/empty"
 )
@@ -20,12 +22,25 @@ type Server struct {
 }
 
 func (s *Server) GetNodes(ctx context.Context, in *pb.GetNodesRequest) (*pb.GetNodesResponse, error) {
-	_, err := s.repo.EditNodesStatusAndGetReadyNodes(int(in.FreeWorkers))
+	nodes, err := s.repo.EditNodesStatusAndGetReadyNodes(int(in.AgentId), int(in.FreeWorkers))
 	if err != nil {
+		logger.Slogger.Error(err)
 		return nil, errors.ErrInternalServerError
 	}
+
+	var protoNodes []*pb.Node
+	var protoNode *pb.Node
+	for _, node := range nodes {
+		protoNode, err = grpcconversion.NodeToGrpcNode(node)
+		logger.Slogger.Info(protoNode)
+		if err != nil {
+			return nil, err
+		}
+		protoNodes = append(protoNodes, protoNode)
+	}
+
 	return &pb.GetNodesResponse{
-		//Nodes: nodes,
+		Nodes: protoNodes,
 	}, nil
 }
 

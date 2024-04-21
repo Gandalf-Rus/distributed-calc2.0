@@ -8,25 +8,30 @@ import (
 )
 
 const (
-	defaultServerPort      = "8080"
-	defaultDBHost          = "localhost"
-	defaultDBPort          = "5432"
-	defaultDBUser          = "postgres"
-	defaultDBPassword      = "postgres"
-	defaultDBName          = "distributedcalc"
-	defaultJWTTokenTimeout = 30 * time.Minute
+	defaultServerPort       = "8080"
+	defaultGrpcHost         = "localhost"
+	defaultGrpcPort         = "5000"
+	defaultDBHost           = "localhost"
+	defaultDBPort           = "5432"
+	defaultDBUser           = "postgres"
+	defaultDBPassword       = "postgres"
+	defaultDBName           = "distributedcalc"
+	defaultJWTTokenTimeout  = 30 * time.Minute
+	defaultAgentLostTimeout = 1 * time.Minute
 )
 
 type Config struct {
-	ServerPort int
-	Dbhost     string
-	Dbport     int
-	Dbuser     string
-	Dbpassword string
-	Dbname     string
-	// AgentLostTimeout int
-	OperatorsDelay  OperatorsDelay
-	JwtTokenTimeout time.Duration
+	ServerPort       int
+	GrpcHost         string
+	GrpcPort         int
+	Dbhost           string
+	Dbport           int
+	Dbuser           string
+	Dbpassword       string
+	Dbname           string
+	OperatorsDelay   OperatorsDelay
+	AgentLostTimeout time.Duration
+	JwtTokenTimeout  time.Duration
 }
 
 type OperatorsDelay struct {
@@ -48,6 +53,21 @@ func InitConfig() error {
 	port, err := strconv.Atoi(serverPort)
 	if err != nil {
 		return fmt.Errorf("failed to parse %s as int: %w", os.Getenv("SERVER_PORT"), err)
+	}
+
+	grpcHost := os.Getenv("GRPC_HOST")
+	if grpcHost == "" {
+		grpcHost = defaultGrpcHost
+	}
+
+	grpcPort := os.Getenv("GRPC_PORT")
+	if grpcPort == "" {
+		grpcPort = defaultGrpcPort
+	}
+
+	grpcport, err := strconv.Atoi(grpcPort)
+	if err != nil {
+		return fmt.Errorf("failed to parse %s as int: %w", os.Getenv("GRPC_PORT"), err)
 	}
 
 	dbHost := os.Getenv("DB_HOST")
@@ -76,12 +96,15 @@ func InitConfig() error {
 	}
 
 	Cfg.ServerPort = port
+	Cfg.GrpcHost = grpcHost
+	Cfg.GrpcPort = grpcport
 	Cfg.Dbhost = dbHost
 	Cfg.Dbport = dbport
 	Cfg.Dbuser = dbUser
 	Cfg.Dbpassword = dbPassword
 	Cfg.Dbname = dbName
 
+	Cfg.AgentLostTimeout = defaultAgentLostTimeout
 	Cfg.JwtTokenTimeout = defaultJWTTokenTimeout
 	Cfg.OperatorsDelay = OperatorsDelay{
 		DelayForAdd: 10,

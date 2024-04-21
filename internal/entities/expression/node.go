@@ -7,6 +7,7 @@ import (
 
 type Node struct {
 	Id           int
+	NodeId       int
 	ExpressionId int
 	ParentNodeId *int
 	Child1NodeId *int

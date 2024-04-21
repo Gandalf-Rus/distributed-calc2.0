@@ -82,9 +82,9 @@ func (t *Expression) buildtree(parsedtree ast.Expr, parent *Node) error {
 			parent.Operand1 = &operand1
 		default:
 			parent.Status = Waiting // придется вычислять операнд
-			childX := t.add(&parent.Id, &Node{})
+			childX := t.add(&parent.NodeId, &Node{})
 			errX := t.buildtree(n.X, childX)
-			parent.Child1NodeId = &childX.Id
+			parent.Child1NodeId = &childX.NodeId
 			if errX != nil {
 				return errX
 			}
@@ -100,9 +100,9 @@ func (t *Expression) buildtree(parsedtree ast.Expr, parent *Node) error {
 			parent.Operand2 = &operand2
 		default:
 			parent.Status = Waiting // придется вычислять операнд
-			childY := t.add(&parent.Id, &Node{})
+			childY := t.add(&parent.NodeId, &Node{})
 			errY := t.buildtree(n.Y, childY)
-			parent.Child2NodeId = &childY.Id
+			parent.Child2NodeId = &childY.NodeId
 			if errY != nil {
 				return errY
 			}
@@ -119,7 +119,7 @@ func unsupport(i interface{}) error {
 }
 
 func (t *Expression) add(parent_id *int, node *Node) *Node {
-	node.Id = len(t.treeSlice)
+	node.NodeId = len(t.treeSlice)
 	node.ParentNodeId = parent_id
 	node.ExpressionId = t.Id
 	node.Child1NodeId = nil
