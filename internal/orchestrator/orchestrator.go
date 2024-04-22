@@ -11,6 +11,7 @@ import (
 
 	"github.com/Gandalf-Rus/distributed-calc2.0/internal/agent"
 	"github.com/Gandalf-Rus/distributed-calc2.0/internal/config"
+	"github.com/Gandalf-Rus/distributed-calc2.0/internal/entities/expression"
 	l "github.com/Gandalf-Rus/distributed-calc2.0/internal/logger"
 	"github.com/Gandalf-Rus/distributed-calc2.0/internal/middlewares"
 	"github.com/Gandalf-Rus/distributed-calc2.0/internal/storage"
@@ -64,6 +65,10 @@ func New(ctx context.Context) (*Orchestrator, error) {
 		return nil, err
 	}
 	l.Logger.Info("DB initialization succeeds")
+
+	if err := repo.SaveLostNodes(expression.Ready.ToString(), expression.InProgress.ToString()); err != nil {
+		l.Slogger.Error(err)
+	}
 
 	// подключение хендлеров к путям
 	registerHandler := http.HandlerFunc(registrateuser.MakeHandler(registrateuser.NewSvc(&repo)))

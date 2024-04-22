@@ -61,6 +61,11 @@ const (
 	);
 	`
 
+	reqProgressNodesToReady = `
+	UPDATE nodes SET status=$1, agent_id=NULL
+	WHERE status=$2
+	`
+
 	reqInsertUser = `
 	INSERT INTO users (name, password) values ($1, $2)
 	`
@@ -177,6 +182,11 @@ func (s *Storage) CreateTablesIfNotExist() error {
 	}
 
 	return nil
+}
+
+func (s *Storage) SaveLostNodes(readyStatus, progresStatus string) error {
+	_, err := s.connPool.Exec(s.ctx, reqProgressNodesToReady, readyStatus, progresStatus)
+	return err
 }
 
 func (s *Storage) SaveUser(user entities.User) error {
