@@ -24,6 +24,7 @@ type Config struct {
 	maxWorkers       int
 	heardBeatTimeout int
 	getNodesTimeout  int
+	operatorsDelay   c.OperatorsDelay
 }
 
 var cfg Config
@@ -42,7 +43,12 @@ func initConfig() {
 	cfg.heardBeatTimeout = *heardBeatTimeout
 	cfg.getNodesTimeout = *getNodesTimeout
 
-	logger.Slogger.Info(c.Cfg)
+	cfg.operatorsDelay = c.OperatorsDelay{
+		DelayForAdd: 1,
+		DelayForSub: 1,
+		DelayForMul: 1,
+		DelayForDiv: 1,
+	}
 }
 
 type AgentProp struct {
@@ -120,6 +126,14 @@ func (a AgentProp) getTasks(client proto.NodeServiceClient, freeWorkers int) ([]
 		return tasks, err
 	}
 
+	// получаем время выполнения
+	cfg.operatorsDelay = c.OperatorsDelay{
+		DelayForAdd: int(response.OpDurations.Add),
+		DelayForSub: int(response.OpDurations.Sub),
+		DelayForMul: int(response.OpDurations.Mul),
+		DelayForDiv: int(response.OpDurations.Div),
+	}
+
 	var node *expression.Node
 	doFunc := func(node *expression.Node) {
 		calculateNode(node)
@@ -174,17 +188,17 @@ func calculateNode(node *expression.Node) {
 	case node.Operator == "+":
 		result = *node.Operand1 + *node.Operand2
 		node.Result = &result
-		secondsDelay = c.Cfg.OperatorsDelay.DelayForAdd
+		secondsDelay = cfg.operatorsDelay.DelayForAdd
 
 	case node.Operator == "-":
 		result = *node.Operand1 - *node.Operand2
 		node.Result = &result
-		secondsDelay = c.Cfg.OperatorsDelay.DelayForSub
+		secondsDelay = cfg.operatorsDelay.DelayForSub
 
 	case node.Operator == "*":
 		result = *node.Operand1 * *node.Operand2
 		node.Result = &result
-		secondsDelay = c.Cfg.OperatorsDelay.DelayForMul
+		secondsDelay = cfg.operatorsDelay.DelayForMul
 
 	case node.Operator == "/":
 		if *node.Operand2 == 0 {
@@ -194,7 +208,7 @@ func calculateNode(node *expression.Node) {
 		} else {
 			result = *node.Operand1 / *node.Operand2
 			node.Result = &result
-			secondsDelay = c.Cfg.OperatorsDelay.DelayForDiv
+			secondsDelay = cfg.operatorsDelay.DelayForDiv
 		}
 	default:
 		node.Status = expression.Error

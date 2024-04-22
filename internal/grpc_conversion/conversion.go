@@ -8,9 +8,15 @@ import (
 )
 
 func NodeToGrpcNode(node *expression.Node) (*proto.Node, error) {
-	if node.ParentNodeId == nil || node.Operand1 == nil || node.Operand2 == nil {
+	if node.Operand1 == nil || node.Operand2 == nil {
 		return &proto.Node{}, errors.New("node should not nil-fields")
 	}
+
+	if node.ParentNodeId == nil {
+		parent := -1
+		node.ParentNodeId = &parent
+	}
+
 	if node.Result == nil {
 		res := 0
 		node.Result = &res

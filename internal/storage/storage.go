@@ -94,7 +94,7 @@ const (
 	values ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 	`
 
-	reqUpdateAndGetNodes = `
+	reqUpdAndGetNodesAgent = `
 	UPDATE nodes SET status=$1, agent_id=$2
 	WHERE id IN (SELECT id FROM nodes WHERE status='ready' LIMIT $3)
 	RETURNING *
@@ -105,8 +105,21 @@ const (
 	`
 
 	reqUpdateNode = `
-	UPDATE nodes SET result=$1, status=$2, message=$3, agent_id=NULL 
-	WHERE node_id=$4 AND expression_id=$5
+	UPDATE nodes SET operand1=$1, operand2=$2, result=$3, status=$4, message=$5, agent_id=NULL 
+	WHERE node_id=$6 AND expression_id=$7
+	`
+
+	reqSelectNode = `
+	SELECT * FROM nodes WHERE  expression_id=$1 AND node_id=$2
+	`
+
+	reqSelectNodes = `
+	SELECT * FROM nodes WHERE  expression_id=$1
+	`
+
+	reqUpdateExpression = `
+	UPDATE expressions SET result=$1, status=$2, message=$3
+	WHERE id=$4
 	`
 )
 
@@ -242,30 +255,15 @@ func (s *Storage) EditNodesStatusAndGetReadyNodes(agentId string, count int) ([]
 	}
 	defer tx.Rollback(s.ctx)
 
-	rows, err := s.connPool.Query(s.ctx, reqUpdateAndGetNodes, expression.Status.ToString(expression.InProgress), agentId, count)
+	rows, err := s.connPool.Query(s.ctx, reqUpdAndGetNodesAgent, expression.Status.ToString(expression.InProgress), agentId, count)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	var nodes []*expression.Node
-	var n expression.Node
-	var status, message *string
-	for rows.Next() {
-		err = rows.Scan(&n.Id, &n.NodeId,
-			&n.ExpressionId, &n.ParentNodeId,
-			&n.Child1NodeId, &n.Child2NodeId,
-			&n.Operand1, &n.Operand2,
-			&n.Operator, &n.Result,
-			&status, &message, &n.AgentId)
-		if err != nil {
-			return nodes, err
-		}
-		n.Status = expression.ToStatus(*status)
-		nodes = append(nodes, &n)
-	}
+	nodes, err := scanNodes(rows)
 
-	if err := rows.Err(); err != nil {
+	if err != nil {
 		return nodes, err
 	}
 
@@ -274,12 +272,73 @@ func (s *Storage) EditNodesStatusAndGetReadyNodes(agentId string, count int) ([]
 }
 
 func (s *Storage) EditNode(node *expression.Node) error {
-	_, err := s.connPool.Query(s.ctx, reqUpdateNode,
-		node.Result, node.Status.ToString(), node.Message, node.NodeId, node.ExpressionId)
+	return updateNode(s.ctx, s.connPool, node)
+}
 
+func (s *Storage) SetExpressionToError(expressionId int, message string) error {
+	nodes, err := getNodes(s.ctx, s.connPool, expressionId)
 	if err != nil {
 		return err
 	}
+
+	for _, node := range nodes {
+		node.Status = expression.Error
+		node.Message = message
+		err = s.EditNode(node)
+		if err != nil {
+			return err
+		}
+	}
+	if err = updateExpression(s.ctx, s.connPool, expressionId, 0, expression.Error.ToString(), message); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *Storage) GetNode(expressionId, nodeId int) (*expression.Node, error) {
+	return getNode(s.ctx, s.connPool, expressionId, nodeId)
+}
+
+func (s *Storage) GetNodeChilldren(expressionId int, childId1, childId2 *int) (*expression.Node, *expression.Node, error) {
+	var child1, child2 *expression.Node
+	var err error
+
+	if childId1 != nil {
+		child1, err = getNode(s.ctx, s.connPool, expressionId, *childId1)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+
+	if childId1 != nil {
+		child2, err = getNode(s.ctx, s.connPool, expressionId, *childId1)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+
+	return child1, child2, nil
+}
+
+func (s *Storage) SetExpressionToDone(expressionId, result int) error {
+	nodes, err := getNodes(s.ctx, s.connPool, expressionId)
+	if err != nil {
+		return err
+	}
+
+	for _, node := range nodes {
+		node.Status = expression.Done
+		node.Message = "super"
+		err = s.EditNode(node)
+		if err != nil {
+			return err
+		}
+	}
+	if err = updateExpression(s.ctx, s.connPool, expressionId, result, expression.Done.ToString(), "great"); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -340,6 +399,81 @@ func insertNode(ctx context.Context, conn *pgxpool.Pool, n *expression.Node) err
 	}
 
 	return nil
+}
+
+func updateNode(ctx context.Context, conn *pgxpool.Pool, n *expression.Node) error {
+	_, err := conn.Query(ctx, reqUpdateNode,
+		n.Operand1, n.Operand2, n.Result,
+		n.Status.ToString(), n.Message, n.NodeId, n.ExpressionId)
+
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func updateExpression(ctx context.Context, conn *pgxpool.Pool, expressionId, result int, status string, message string) error {
+	_, err := conn.Query(ctx, reqUpdateExpression,
+		result, status, message, expressionId)
+
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func getNode(ctx context.Context, conn *pgxpool.Pool, expressionId, nodeId int) (*expression.Node, error) {
+	row := conn.QueryRow(ctx, reqSelectNode, expressionId, nodeId)
+	node, err := scanNode(row)
+	return node, err
+}
+
+func getNodes(ctx context.Context, conn *pgxpool.Pool, expressionId int) ([]*expression.Node, error) {
+	rows, err := conn.Query(ctx, reqSelectNodes, expressionId)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	return scanNodes(rows)
+}
+
+func scanNode(row pgx.Row) (*expression.Node, error) {
+	var n expression.Node
+	var status, message *string
+	err := row.Scan(&n.Id, &n.NodeId,
+		&n.ExpressionId, &n.ParentNodeId,
+		&n.Child1NodeId, &n.Child2NodeId,
+		&n.Operand1, &n.Operand2,
+		&n.Operator, &n.Result,
+		&status, &message, &n.AgentId)
+	if err != nil {
+		return nil, err
+	}
+	if message == nil {
+		pass := ""
+		message = &pass
+	}
+	n.Status = expression.ToStatus(*status)
+	n.Message = *message
+	return &n, nil
+}
+
+func scanNodes(rows pgx.Rows) ([]*expression.Node, error) {
+	var nodes []*expression.Node
+	for rows.Next() {
+		n, err := scanNode(rows)
+		if err != nil {
+			return nil, err
+		}
+		nodes = append(nodes, n)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nodes, err
+	}
+
+	return nodes, nil
 }
 
 func rowsToSlice[T any](rows pgx.Rows) ([]T, error) {
