@@ -115,3 +115,22 @@ func InitConfig() error {
 
 	return nil
 }
+
+func (cfg *Config) ChangeOpDuration(op string, duration int) error {
+	if duration < 0 {
+		return fmt.Errorf("operation duration must be positive")
+	}
+	switch op {
+	case "+":
+		cfg.OperatorsDelay.DelayForAdd = duration
+	case "-":
+		cfg.OperatorsDelay.DelayForSub = duration
+	case "*":
+		cfg.OperatorsDelay.DelayForMul = duration
+	case "/":
+		cfg.OperatorsDelay.DelayForDiv = duration
+	default:
+		return fmt.Errorf("unsupported operator")
+	}
+	return nil
+}

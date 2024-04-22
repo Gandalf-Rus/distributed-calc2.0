@@ -1,0 +1,3 @@
+GET http://localhost:8080/api/get_expressions HTTP/1.1
+Authorization: Border eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3MTM4MTM2MDAsImlhdCI6MTcxMzgxMTgwMCwibmJmIjoxNzEzODExODAwLCJ1c2VySUQiOjF9.ImUjcDoAmVFFmKPkomC5_iGFmdDLt6iuC_MUN3KJgZQ
+# Boeder <jwt token (login response)>

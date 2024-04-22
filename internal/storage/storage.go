@@ -81,6 +81,14 @@ const (
 	SELECT exit_id FROM expressions
 	`
 
+	reqSelectExpression = `
+	SELECT * FROM expressions WHERE exit_id=$1
+	`
+
+	reqSelectExpressionsByUser = `
+	SELECT * FROM expressions WHERE user_id=$1	
+	`
+
 	reqInsertExpression = `
 	INSERT INTO expressions(exit_id, user_id, body, status)
 	values ($1, $2, $3, $4)
@@ -244,6 +252,34 @@ func (s *Storage) SaveExpressionAndNodes(expr expression.Expression, nodes []*ex
 	tx.Commit(s.ctx)
 
 	return nil
+}
+
+// get expression
+
+func (s *Storage) GetExpression(exitId string) (*expression.Expression, error) {
+	row := s.connPool.QueryRow(s.ctx, reqSelectExpression, exitId)
+	return scanExpression(row)
+}
+
+// get expressions
+
+func (s *Storage) GetUserExpressions(userId int) ([]*expression.Expression, error) {
+	rows, err := s.connPool.Query(s.ctx, reqSelectExpressionsByUser, userId)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var result []*expression.Expression
+
+	for rows.Next() {
+		expr, err := scanExpression(rows)
+		if err != nil {
+			return result, err
+		}
+		result = append(result, expr)
+	}
+	return result, rows.Err()
 }
 
 // get edit nodes
@@ -474,6 +510,23 @@ func scanNodes(rows pgx.Rows) ([]*expression.Node, error) {
 	}
 
 	return nodes, nil
+}
+
+func scanExpression(row pgx.Row) (*expression.Expression, error) {
+	var expr expression.Expression
+	var status string
+	var msg *string
+	if err := row.Scan(&expr.Id, &expr.ExitId, &expr.UserId, &expr.Body, &expr.Result, &status, &msg); err != nil {
+		return nil, err
+	}
+	expr.Status = expression.ToStatus(status)
+	if msg == nil {
+		expr.Message = ""
+	} else {
+		expr.Message = *msg
+	}
+
+	return &expr, nil
 }
 
 func rowsToSlice[T any](rows pgx.Rows) ([]T, error) {

@@ -1,0 +1,8 @@
+GET http://localhost:8080/api/get_expression HTTP/1.1
+Authorization: Border eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3MTM4MTA4NDUsImlhdCI6MTcxMzgwOTA0NSwibmJmIjoxNzEzODA5MDQ1LCJ1c2VySUQiOjF9.B6j_AWHSPY4Or9CUr6GtAAe_2K7mLk5AQrxtYkWg12E
+content-type: application/json
+# Boeder <jwt token (login response)>
+
+{
+    "exit_id": "2.3"
+} 

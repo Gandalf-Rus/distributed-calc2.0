@@ -14,7 +14,10 @@ import (
 	l "github.com/Gandalf-Rus/distributed-calc2.0/internal/logger"
 	"github.com/Gandalf-Rus/distributed-calc2.0/internal/middlewares"
 	"github.com/Gandalf-Rus/distributed-calc2.0/internal/storage"
+	"github.com/Gandalf-Rus/distributed-calc2.0/internal/use_cases/editopduration"
 	geteditnodes "github.com/Gandalf-Rus/distributed-calc2.0/internal/use_cases/get_edit_nodes"
+	getexpression "github.com/Gandalf-Rus/distributed-calc2.0/internal/use_cases/get_expression"
+	getexpressions "github.com/Gandalf-Rus/distributed-calc2.0/internal/use_cases/get_expressions"
 	loginuser "github.com/Gandalf-Rus/distributed-calc2.0/internal/use_cases/login_user"
 	postexpression "github.com/Gandalf-Rus/distributed-calc2.0/internal/use_cases/post_expression"
 	registrateuser "github.com/Gandalf-Rus/distributed-calc2.0/internal/use_cases/registrate_user"
@@ -66,12 +69,18 @@ func New(ctx context.Context) (*Orchestrator, error) {
 	registerHandler := http.HandlerFunc(registrateuser.MakeHandler(registrateuser.NewSvc(&repo)))
 	loginHandler := http.HandlerFunc(loginuser.MakeHandler(loginuser.NewSvc(&repo)))
 	postExpressionHandler := http.HandlerFunc(postexpression.MakeHandler(postexpression.NewSvc(&repo)))
+	getExpressionHandler := http.HandlerFunc(getexpression.MakeHandler(getexpression.NewSvc(&repo)))
+	getExpressionsHandler := http.HandlerFunc(getexpressions.MakeHandler(getexpressions.NewSvc(&repo)))
+	editOperationdurationHandler := http.HandlerFunc(editopduration.MakeHandler(editopduration.NewSvc(&repo, &config.Cfg)))
 
 	apiRouter := mux.NewRouter().PathPrefix("/api").Subrouter()
 	apiRouter.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) { w.Write([]byte("hi")) }).Methods("GET")
 	apiRouter.HandleFunc("/register", registerHandler).Methods("POST")
 	apiRouter.HandleFunc("/login", loginHandler).Methods("POST")
 	apiRouter.HandleFunc("/expression", postExpressionHandler).Methods("POST")
+	apiRouter.HandleFunc("/get_expression", getExpressionHandler).Methods("GET")
+	apiRouter.HandleFunc("/get_expressions", getExpressionsHandler).Methods("GET")
+	apiRouter.HandleFunc("/edit_op_duration", editOperationdurationHandler).Methods("POST")
 
 	router.PathPrefix("/api").Handler(apiRouter)
 
