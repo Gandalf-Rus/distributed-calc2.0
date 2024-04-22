@@ -2,7 +2,6 @@ package work
 
 import (
 	"log"
-	"math/rand"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -40,9 +39,11 @@ func (p *Pool) Run() {
 	p.wg.Add(p.maxGorutines)
 	for i := 0; i < p.maxGorutines; i++ {
 		// создадим горутины по указанному количеству maxGoroutines
-		go func() {
+		go func(ch <-chan Task) {
 			// забираем задачи из канала
-			for w := range p.tasks {
+			for w := range ch {
+				// задержка чтоб каналы не читали одну и ту же записть
+				time.Sleep(time.Millisecond)
 				//уменьшим счетчик
 				atomic.AddInt32(&p.freeGorutines, -1)
 				// и выполняем
@@ -51,15 +52,14 @@ func (p *Pool) Run() {
 				log.Println("закончил")
 				// выполнили => горутина свободна
 				atomic.AddInt32(&p.freeGorutines, 1)
-				time.Sleep(time.Second * time.Duration(rand.Float64()))
 			}
 			// после закрытия канала нужно оповестить наш пул
 			p.wg.Done()
-		}()
+		}(p.tasks)
 	}
 
 	p.wg.Wait()
-	log.Println("Ну все я пошел...")
+	log.Println("Task pool: 'ну все я пошел...'")
 }
 
 func (p *Pool) CountOfFreeGorutines() int {

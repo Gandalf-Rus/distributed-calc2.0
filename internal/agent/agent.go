@@ -144,7 +144,7 @@ func (a AgentProp) getTasks(client proto.NodeServiceClient, freeWorkers int) ([]
 
 	for _, protoNode := range response.Nodes {
 		node = grpcconversion.GrpcNodeToNode(protoNode)
-		logger.Logger.Info(fmt.Sprintf("node #%v in work (%v %v %v)", node.NodeId, *node.Operand1, node.Operator, *node.Operand2))
+		logger.Logger.Info(fmt.Sprintf("node #%v%v in work (%v %v %v)", node.ExpressionId, node.NodeId, *node.Operand1, node.Operator, *node.Operand2))
 		snode := NewSmartNode(node, doFunc)
 		tasks = append(tasks, snode)
 	}

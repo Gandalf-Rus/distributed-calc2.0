@@ -3,7 +3,6 @@ package geteditnodes
 import (
 	"context"
 	"fmt"
-	"log"
 
 	"github.com/Gandalf-Rus/distributed-calc2.0/internal/agent"
 	"github.com/Gandalf-Rus/distributed-calc2.0/internal/config"
@@ -66,7 +65,6 @@ func (s *Server) TakeHeartBeat(ctx context.Context, in *pb.GetNodesRequest) (*em
 
 func (s *Server) EditNode(ctx context.Context, in *pb.EditNodeRequest) (*empty.Empty, error) {
 	node := grpcconversion.GrpcNodeToNode(in.Node)
-	log.Printf("node to save: (%v)", node)
 	if err := s.repo.EditNode(node); err != nil {
 		return nil, err
 	}
@@ -75,9 +73,7 @@ func (s *Server) EditNode(ctx context.Context, in *pb.EditNodeRequest) (*empty.E
 		if err := s.repo.SetExpressionToError(node.ExpressionId, node.Message); err != nil {
 			logger.Logger.Error(fmt.Sprintf("error to edit nodes & expression: %v", err))
 		}
-	}
-
-	if *node.ParentNodeId == -1 {
+	} else if *node.ParentNodeId == -1 {
 		if err := s.repo.SetExpressionToDone(node.ExpressionId, *node.Result); err != nil {
 			logger.Logger.Error(fmt.Sprintf("error to edit expression: %v", err))
 		}
@@ -99,7 +95,9 @@ func (s *Server) EditNode(ctx context.Context, in *pb.EditNodeRequest) (*empty.E
 			parentNode.Operand2 = child2.Result
 		}
 
-		if parentNode.Operand1 != nil && parentNode.Operand2 != nil {
+		logger.Logger.Info(fmt.Sprintf("parent node: nodeId: %d obj - %v", parentNode.NodeId, parentNode))
+
+		if parentNode.Operand1 != nil && parentNode.Operand2 != nil && parentNode.Status == expression.Waiting {
 			parentNode.Status = expression.Ready
 			if err := s.repo.EditNode(parentNode); err != nil {
 				logger.Logger.Error(fmt.Sprintf("error to edit parent node: %v", err))

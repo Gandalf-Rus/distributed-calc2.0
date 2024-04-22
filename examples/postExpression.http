@@ -1,7 +1,9 @@
-POST http://localhost:8080/api/localhost:8080/expression HTTP/1.1
+POST http://localhost:8080/api/expression HTTP/1.1
+Authorization: Border eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3MTM4MDIyNDgsImlhdCI6MTcxMzgwMDQ0OCwibmJmIjoxNzEzODAwNDQ4LCJ1c2VySUQiOjF9.Is4Edb-20vrbOpmlScua542YHGwRkz-CBf-h1NrADCU
 content-type: application/json
+# Boeder <jwt token (login response)>
 
 {
-    "exit_id": "1",
-    "expression": "(2+2)*(2-1)"
+    "exit_id": "1.2.6",
+    "expression": "(2+1+ 3)/(1-1)"
 }

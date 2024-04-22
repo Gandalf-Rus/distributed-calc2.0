@@ -19,7 +19,7 @@ func RegistrateAgent(agentId string) {
 	agents[agentId] = &agent{
 		LastSeen: time.Now(),
 	}
-	logger.Logger.Info(fmt.Sprintf("%v", agents))
+	logger.Logger.Info(fmt.Sprintf("Agents: %v", agents))
 }
 
 func IsAgent(agentId string) bool {

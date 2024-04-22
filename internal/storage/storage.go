@@ -228,7 +228,7 @@ func (s *Storage) SaveExpressionAndNodes(expr expression.Expression, nodes []*ex
 		return err
 	}
 
-	expressionId, err := insertExpression(s.ctx, s.connPool, expr)
+	expressionId, err := insertExpression(s.ctx, tx, expr)
 	if err != nil {
 		tx.Rollback(s.ctx)
 		return err
@@ -236,7 +236,7 @@ func (s *Storage) SaveExpressionAndNodes(expr expression.Expression, nodes []*ex
 
 	for _, node := range nodes {
 		node.ExpressionId = expressionId
-		if err = insertNode(s.ctx, s.connPool, node); err != nil {
+		if err = insertNode(s.ctx, tx, node); err != nil {
 			tx.Rollback(s.ctx)
 			return err
 		}
@@ -255,7 +255,7 @@ func (s *Storage) EditNodesStatusAndGetReadyNodes(agentId string, count int) ([]
 	}
 	defer tx.Rollback(s.ctx)
 
-	rows, err := s.connPool.Query(s.ctx, reqUpdAndGetNodesAgent, expression.Status.ToString(expression.InProgress), agentId, count)
+	rows, err := tx.Query(s.ctx, reqUpdAndGetNodesAgent, expression.Status.ToString(expression.InProgress), agentId, count)
 	if err != nil {
 		return nil, err
 	}
@@ -311,8 +311,8 @@ func (s *Storage) GetNodeChilldren(expressionId int, childId1, childId2 *int) (*
 		}
 	}
 
-	if childId1 != nil {
-		child2, err = getNode(s.ctx, s.connPool, expressionId, *childId1)
+	if childId2 != nil {
+		child2, err = getNode(s.ctx, s.connPool, expressionId, *childId2)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -330,7 +330,7 @@ func (s *Storage) SetExpressionToDone(expressionId, result int) error {
 	for _, node := range nodes {
 		node.Status = expression.Done
 		node.Message = "super"
-		err = s.EditNode(node)
+		err = updateNode(s.ctx, s.connPool, node)
 		if err != nil {
 			return err
 		}
@@ -383,16 +383,16 @@ func createNodesTable(ctx context.Context, conn *pgxpool.Pool) error {
 	return nil
 }
 
-func insertExpression(ctx context.Context, conn *pgxpool.Pool, e expression.Expression) (int, error) {
+func insertExpression(ctx context.Context, tx pgx.Tx, e expression.Expression) (int, error) {
 	logger.Logger.Info(fmt.Sprint(e.ExitId, e.UserId, e.Body, e.Status.ToString()))
 	var id int
-	row := conn.QueryRow(ctx, reqInsertExpression, e.ExitId, e.UserId, e.Body, e.Status.ToString())
+	row := tx.QueryRow(ctx, reqInsertExpression, e.ExitId, e.UserId, e.Body, e.Status.ToString())
 	err := row.Scan(&id)
 	return id, err
 }
 
-func insertNode(ctx context.Context, conn *pgxpool.Pool, n *expression.Node) error {
-	if _, err := conn.Exec(ctx, reqInsertNode, n.NodeId, n.ExpressionId, n.ParentNodeId,
+func insertNode(ctx context.Context, tx pgx.Tx, n *expression.Node) error {
+	if _, err := tx.Exec(ctx, reqInsertNode, n.NodeId, n.ExpressionId, n.ParentNodeId,
 		n.Child1NodeId, n.Child2NodeId, n.Operand1, n.Operand2, n.Operator,
 		n.Status.ToString()); err != nil {
 		return err
