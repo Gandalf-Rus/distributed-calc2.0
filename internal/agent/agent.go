@@ -144,7 +144,7 @@ func (a AgentProp) getTasks(client proto.NodeServiceClient, freeWorkers int) ([]
 
 	for _, protoNode := range response.Nodes {
 		node = grpcconversion.GrpcNodeToNode(protoNode)
-		logger.Logger.Info(fmt.Sprintf("node #%v%v in work (%v %v %v)", node.ExpressionId, node.NodeId, *node.Operand1, node.Operator, *node.Operand2))
+		logger.Logger.Info(fmt.Sprintf("node #%v.%v in work (%v %v %v)", node.ExpressionId, node.NodeId, *node.Operand1, node.Operator, *node.Operand2))
 		snode := NewSmartNode(node, doFunc)
 		tasks = append(tasks, snode)
 	}
@@ -177,7 +177,7 @@ func (a AgentProp) sendNode(node *expression.Node, client proto.NodeServiceClien
 }
 
 func calculateNode(node *expression.Node) {
-	var result int
+	var result float64
 	var secondsDelay int
 
 	switch {
@@ -218,7 +218,6 @@ func calculateNode(node *expression.Node) {
 	if node.Status != expression.Error {
 		logger.Logger.Info(fmt.Sprintf("operator delay in sec: %v", secondsDelay))
 		time.Sleep(time.Second * time.Duration(secondsDelay))
-		logger.Logger.Info("delay end")
 		node.Status = expression.Done
 	}
 }

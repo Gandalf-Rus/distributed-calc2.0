@@ -8,5 +8,5 @@ type repo interface {
 	SetExpressionToError(expressionId int, message string) error
 	GetNode(expressionId, nodeId int) (*expression.Node, error)
 	GetNodeChilldren(expressionId int, childId1, childId2 *int) (*expression.Node, *expression.Node, error)
-	SetExpressionToDone(expressionId, result int) error
+	SetExpressionToDone(expressionId int, result float64) error
 }

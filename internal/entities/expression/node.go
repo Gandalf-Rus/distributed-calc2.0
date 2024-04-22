@@ -12,22 +12,22 @@ type Node struct {
 	ParentNodeId *int
 	Child1NodeId *int
 	Child2NodeId *int
-	Operand1     *int
-	Operand2     *int
+	Operand1     *float64
+	Operand2     *float64
 	Operator     string
-	Result       *int
+	Result       *float64
 	Status       Status // (parsing, "error", waiting - ждем результатов других выражений, ready - оба операнда вычислены, in progress - передано в расчет, done - есть результат)
 	Message      string
 	AgentId      *string
 }
 
-type NodeStatusInfo struct { // Вспомогательная структура
+type nodeStatusInfo struct { // Вспомогательная структура
 	Agent_id string
-	Result   int
+	Result   float64
 	Message  string
 }
 
-func (t *Expression) SetNodeStatus(node_id int, status Status, info NodeStatusInfo) {
+func (t *Expression) SetNodeStatus(node_id int, status Status, info nodeStatusInfo) {
 	if int(node_id) > len(t.treeSlice)-1 || node_id < 0 {
 		l.Logger.Error("Node id out of bounds",
 			zap.Int("task_id", int(t.Id)),

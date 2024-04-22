@@ -18,7 +18,7 @@ func NodeToGrpcNode(node *expression.Node) (*proto.Node, error) {
 	}
 
 	if node.Result == nil {
-		res := 0
+		var res float64 = 0
 		node.Result = &res
 	}
 
@@ -26,10 +26,10 @@ func NodeToGrpcNode(node *expression.Node) (*proto.Node, error) {
 		Id:           int32(node.NodeId),
 		ExpressionId: int32(node.ExpressionId),
 		ParentNodeId: int32(*node.ParentNodeId),
-		Operand1:     int32(*node.Operand1),
-		Operand2:     int32(*node.Operand2),
+		Operand1:     float32(*node.Operand1),
+		Operand2:     float32(*node.Operand2),
 		Operator:     node.Operator,
-		Result:       int32(*node.Result),
+		Result:       float32(*node.Result),
 		Status:       node.Status.ToString(),
 		Message:      node.Message,
 	}, nil
@@ -37,9 +37,9 @@ func NodeToGrpcNode(node *expression.Node) (*proto.Node, error) {
 
 func GrpcNodeToNode(grpcNode *proto.Node) *expression.Node {
 	parent := int(grpcNode.ParentNodeId)
-	operand1 := int(grpcNode.Operand1)
-	operand2 := int(grpcNode.Operand2)
-	result := int(grpcNode.Result)
+	operand1 := float64(grpcNode.Operand1)
+	operand2 := float64(grpcNode.Operand2)
+	result := float64(grpcNode.Result)
 	return &expression.Node{
 		NodeId:       int(grpcNode.Id),
 		ExpressionId: int(grpcNode.ExpressionId),

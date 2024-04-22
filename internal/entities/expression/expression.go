@@ -17,36 +17,36 @@ type Expression struct {
 	ExitId    string // внешний идентификатор для идемпотентности
 	UserId    int
 	Body      string
-	Result    *int
+	Result    *float64
 	Status    Status  // (parsing, error, ready, in progress, done)
 	Message   string  // текстовое сообщение с результатом/ошибкой
 	treeSlice []*Node // Дерево Abstract Syntax Tree
 }
 
-type ExprStatusInfo struct { // Вспомогательная структура
-	Result  *int
+type exprStatusInfo struct { // Вспомогательная структура
+	Result  *float64
 	Message string
 }
 
 func NewExpression(expr string, ext_id string) (Expression, []*Node, error) {
 	t := Expression{Body: expr, ExitId: ext_id, treeSlice: make([]*Node, 0)}
-	t.SetStatus(Parsing, ExprStatusInfo{})
+	t.SetStatus(Parsing, exprStatusInfo{})
 
 	root := &Node{}
 	t.add(nil, root)
 
 	parsedtree, err := parser.ParseExpr(expr)
 	if err != nil {
-		t.SetStatus(Error, ExprStatusInfo{Message: err.Error()})
+		t.SetStatus(Error, exprStatusInfo{Message: err.Error()})
 		return t, t.treeSlice, err
 	}
 
 	err = t.buildtree(parsedtree, t.treeSlice[0])
 	if err != nil {
-		t.SetStatus(Error, ExprStatusInfo{Message: err.Error()})
+		t.SetStatus(Error, exprStatusInfo{Message: err.Error()})
 		return t, t.treeSlice, err
 	}
-	t.SetStatus(Ready, ExprStatusInfo{})
+	t.SetStatus(Ready, exprStatusInfo{})
 	return t, t.treeSlice, err
 }
 
@@ -78,7 +78,7 @@ func (t *Expression) buildtree(parsedtree ast.Expr, parent *Node) error {
 			if x.Kind != token.INT {
 				return unsupport(x.Kind)
 			}
-			operand1, _ := strconv.Atoi(x.Value)
+			operand1, _ := strconv.ParseFloat(x.Value, 64)
 			parent.Operand1 = &operand1
 		default:
 			parent.Status = Waiting // придется вычислять операнд
@@ -96,7 +96,7 @@ func (t *Expression) buildtree(parsedtree ast.Expr, parent *Node) error {
 			if y.Kind != token.INT {
 				return unsupport(y.Kind)
 			}
-			operand2, _ := strconv.Atoi(y.Value)
+			operand2, _ := strconv.ParseFloat(y.Value, 64)
 			parent.Operand2 = &operand2
 		default:
 			parent.Status = Waiting // придется вычислять операнд
@@ -128,7 +128,7 @@ func (t *Expression) add(parent_id *int, node *Node) *Node {
 	return node
 }
 
-func (t *Expression) SetStatus(status Status, info ExprStatusInfo) {
+func (t *Expression) SetStatus(status Status, info exprStatusInfo) {
 	// проверим, что кто-то другой не изменил уже наш статус до нас
 	if status == t.Status {
 		// делать нечего
@@ -153,7 +153,7 @@ func (t *Expression) SetStatus(status Status, info ExprStatusInfo) {
 		t.Status = Done
 		l.Logger.Info("Task status complete",
 			zap.Int("task_id", int(t.Id)),
-			zap.Int("result", *t.Result),
+			zap.Float64("result", *t.Result),
 		)
 	case Error:
 		t.Message = fmt.Sprintf("Calculation failed. Error = %v", info.Message)

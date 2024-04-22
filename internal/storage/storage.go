@@ -321,7 +321,7 @@ func (s *Storage) GetNodeChilldren(expressionId int, childId1, childId2 *int) (*
 	return child1, child2, nil
 }
 
-func (s *Storage) SetExpressionToDone(expressionId, result int) error {
+func (s *Storage) SetExpressionToDone(expressionId int, result float64) error {
 	nodes, err := getNodes(s.ctx, s.connPool, expressionId)
 	if err != nil {
 		return err
@@ -412,7 +412,7 @@ func updateNode(ctx context.Context, conn *pgxpool.Pool, n *expression.Node) err
 	return nil
 }
 
-func updateExpression(ctx context.Context, conn *pgxpool.Pool, expressionId, result int, status string, message string) error {
+func updateExpression(ctx context.Context, conn *pgxpool.Pool, expressionId int, result float64, status string, message string) error {
 	_, err := conn.Query(ctx, reqUpdateExpression,
 		result, status, message, expressionId)
 
