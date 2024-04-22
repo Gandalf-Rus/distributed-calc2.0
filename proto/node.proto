@@ -8,10 +8,10 @@ message Node {
     int32 id = 1;
     int32 expressionId = 2;
     int32 parentNodeId = 3;
-	int32 operand1 = 4;
-	int32 operand2 = 5;
+	float operand1 = 4;
+	float operand2 = 5;
 	string operator = 6;
-	int32 result = 7;
+	float result = 7;
 	string status = 8;
 	string message = 9;
 }
