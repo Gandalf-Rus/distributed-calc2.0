@@ -66,6 +66,7 @@ func New(ctx context.Context) (*Orchestrator, error) {
 	}
 	l.Logger.Info("DB initialization succeeds")
 
+	// Если какие-то ноды были в расчете, переводим их в состояние "готовы к вычислению"
 	if err := repo.SaveLostNodes(expression.Ready.ToString(), expression.InProgress.ToString()); err != nil {
 		l.Slogger.Error(err)
 	}
