@@ -12,6 +12,7 @@ import (
 	"github.com/Gandalf-Rus/distributed-calc2.0/internal/logger"
 	pb "github.com/Gandalf-Rus/distributed-calc2.0/proto"
 	"github.com/golang/protobuf/ptypes/empty"
+	"go.uber.org/zap"
 )
 
 func NewServer(repo repo) *Server {
@@ -36,7 +37,6 @@ func (s *Server) GetNodes(ctx context.Context, in *pb.GetNodesRequest) (*pb.GetN
 	var protoNode *pb.Node
 	for _, node := range nodes {
 		protoNode, err = grpcconversion.NodeToGrpcNode(node)
-		logger.Slogger.Info(protoNode)
 		if err != nil {
 			return nil, err
 		}
@@ -74,6 +74,7 @@ func (s *Server) EditNode(ctx context.Context, in *pb.EditNodeRequest) (*empty.E
 			logger.Logger.Error(fmt.Sprintf("error to edit nodes & expression: %v", err))
 		}
 	} else if *node.ParentNodeId == -1 {
+		logger.Logger.Info("Expression is done: ", zap.Int("Id: ", node.ExpressionId), zap.Float64("Id: ", *node.Result))
 		if err := s.repo.SetExpressionToDone(node.ExpressionId, *node.Result); err != nil {
 			logger.Logger.Error(fmt.Sprintf("error to edit expression: %v", err))
 		}
@@ -94,8 +95,6 @@ func (s *Server) EditNode(ctx context.Context, in *pb.EditNodeRequest) (*empty.E
 		if parentNode.Operand2 == nil && child2.Status == expression.Done {
 			parentNode.Operand2 = child2.Result
 		}
-
-		logger.Logger.Info(fmt.Sprintf("parent node: nodeId: %d obj - %v", parentNode.NodeId, parentNode))
 
 		if parentNode.Operand1 != nil && parentNode.Operand2 != nil && parentNode.Status == expression.Waiting {
 			parentNode.Status = expression.Ready

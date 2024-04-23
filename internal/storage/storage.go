@@ -241,25 +241,25 @@ func (s *Storage) GetTokens() ([]string, error) {
 }
 
 func (s *Storage) SaveExpressionAndNodes(expr expression.Expression, nodes []*expression.Node) error {
-	tx, err := s.connPool.BeginTx(s.ctx, pgx.TxOptions{})
-	if err != nil {
-		return err
-	}
+	// tx, err := s.connPool.BeginTx(s.ctx, pgx.TxOptions{})
+	// if err != nil {
+	// 	return err
+	// }
 
-	expressionId, err := insertExpression(s.ctx, tx, expr)
+	expressionId, err := insertExpression(s.ctx, s.connPool, expr)
 	if err != nil {
-		tx.Rollback(s.ctx)
+		//tx.Rollback(s.ctx)
 		return err
 	}
 
 	for _, node := range nodes {
 		node.ExpressionId = expressionId
-		if err = insertNode(s.ctx, tx, node); err != nil {
-			tx.Rollback(s.ctx)
+		if err = insertNode(s.ctx, s.connPool, node); err != nil {
+			//tx.Rollback(s.ctx)
 			return err
 		}
 	}
-	tx.Commit(s.ctx)
+	//tx.Commit(s.ctx)
 
 	return nil
 }
@@ -295,13 +295,13 @@ func (s *Storage) GetUserExpressions(userId int) ([]*expression.Expression, erro
 // get edit nodes
 
 func (s *Storage) EditNodesStatusAndGetReadyNodes(agentId string, count int) ([]*expression.Node, error) {
-	tx, err := s.connPool.BeginTx(s.ctx, pgx.TxOptions{})
-	if err != nil {
-		return nil, err
-	}
-	defer tx.Rollback(s.ctx)
+	//tx, err := s.connPool.BeginTx(s.ctx, pgx.TxOptions{})
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// defer tx.Rollback(s.ctx)
 
-	rows, err := tx.Query(s.ctx, reqUpdAndGetNodesAgent, expression.Status.ToString(expression.InProgress), agentId, count)
+	rows, err := s.connPool.Query(s.ctx, reqUpdAndGetNodesAgent, expression.Status.ToString(expression.InProgress), agentId, count)
 	if err != nil {
 		return nil, err
 	}
@@ -313,7 +313,7 @@ func (s *Storage) EditNodesStatusAndGetReadyNodes(agentId string, count int) ([]
 		return nodes, err
 	}
 
-	tx.Commit(s.ctx)
+	//tx.Commit(s.ctx)
 	return nodes, nil
 }
 
@@ -429,16 +429,16 @@ func createNodesTable(ctx context.Context, conn *pgxpool.Pool) error {
 	return nil
 }
 
-func insertExpression(ctx context.Context, tx pgx.Tx, e expression.Expression) (int, error) {
+func insertExpression(ctx context.Context, conn *pgxpool.Pool, e expression.Expression) (int, error) {
 	logger.Logger.Info(fmt.Sprint(e.ExitId, e.UserId, e.Body, e.Status.ToString()))
 	var id int
-	row := tx.QueryRow(ctx, reqInsertExpression, e.ExitId, e.UserId, e.Body, e.Status.ToString())
+	row := conn.QueryRow(ctx, reqInsertExpression, e.ExitId, e.UserId, e.Body, e.Status.ToString())
 	err := row.Scan(&id)
 	return id, err
 }
 
-func insertNode(ctx context.Context, tx pgx.Tx, n *expression.Node) error {
-	if _, err := tx.Exec(ctx, reqInsertNode, n.NodeId, n.ExpressionId, n.ParentNodeId,
+func insertNode(ctx context.Context, conn *pgxpool.Pool, n *expression.Node) error {
+	if _, err := conn.Exec(ctx, reqInsertNode, n.NodeId, n.ExpressionId, n.ParentNodeId,
 		n.Child1NodeId, n.Child2NodeId, n.Operand1, n.Operand2, n.Operator,
 		n.Status.ToString()); err != nil {
 		return err
@@ -448,7 +448,7 @@ func insertNode(ctx context.Context, tx pgx.Tx, n *expression.Node) error {
 }
 
 func updateNode(ctx context.Context, conn *pgxpool.Pool, n *expression.Node) error {
-	_, err := conn.Query(ctx, reqUpdateNode,
+	_, err := conn.Exec(ctx, reqUpdateNode,
 		n.Operand1, n.Operand2, n.Result,
 		n.Status.ToString(), n.Message, n.NodeId, n.ExpressionId)
 

@@ -16,7 +16,7 @@ const (
 	defaultDBUser           = "postgres"
 	defaultDBPassword       = "postgres"
 	defaultDBName           = "distributedcalc"
-	defaultJWTTokenTimeout  = 30 * time.Minute
+	defaultJWTTokenTimeout  = 30 * time.Hour
 	defaultAgentLostTimeout = 10 * time.Second
 )
 
@@ -107,10 +107,10 @@ func InitConfig() error {
 	Cfg.AgentLostTimeout = defaultAgentLostTimeout
 	Cfg.JwtTokenTimeout = defaultJWTTokenTimeout
 	Cfg.OperatorsDelay = OperatorsDelay{
-		DelayForAdd: 7,
-		DelayForSub: 7,
-		DelayForMul: 7,
-		DelayForDiv: 7,
+		DelayForAdd: 0,
+		DelayForSub: 0,
+		DelayForMul: 0,
+		DelayForDiv: 0,
 	}
 
 	return nil

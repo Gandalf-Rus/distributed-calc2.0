@@ -4,6 +4,6 @@ content-type: application/json
 # Boeder <jwt token (login response)>
 
 {
-    "operator": "+a",
+    "operator": "+",
     "delay": 5
 }
