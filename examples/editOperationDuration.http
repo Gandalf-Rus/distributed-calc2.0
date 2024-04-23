@@ -1,9 +1,9 @@
 POST http://localhost:8080/api/edit_op_duration HTTP/1.1
-Authorization: Border eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3MTM4MTU2NTQsImlhdCI6MTcxMzgxMzg1NCwibmJmIjoxNzEzODEzODU0LCJ1c2VySUQiOjF9.26A6yEFLDvmz2ZH14d3S7P4EyHqyBJmbjIqx7DKRIvU
+Authorization: Border eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3MTM4ODg4OTMsImlhdCI6MTcxMzg4NzA5MywibmJmIjoxNzEzODg3MDkzLCJ1c2VySUQiOjF9.bCrMkqnAWTz8ELvkj6tK25bknKKTtXqB3hLG2fE9eFE
 content-type: application/json
 # Boeder <jwt token (login response)>
 
 {
-    "operator": "+a",
-    "delay": 5
+    "operator": "+",
+    "delay": 1
 }

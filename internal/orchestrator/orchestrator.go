@@ -149,7 +149,7 @@ func (o *Orchestrator) stop(ctx context.Context) error {
 
 func (o *Orchestrator) GracefulStop(serverCtx context.Context, sig <-chan os.Signal, serverStopCtx context.CancelFunc) {
 	<-sig
-	var timeOut = 1 * time.Second
+	var timeOut = 3 * time.Second
 	shutdownCtx, shutdownStopCtx := context.WithTimeout(serverCtx, timeOut)
 
 	go func() {
