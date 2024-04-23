@@ -5,15 +5,17 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	c "github.com/Gandalf-Rus/distributed-calc2.0/internal/config"
 	"github.com/Gandalf-Rus/distributed-calc2.0/internal/entities/expression"
 	grpcconversion "github.com/Gandalf-Rus/distributed-calc2.0/internal/grpc_conversion"
 	"github.com/Gandalf-Rus/distributed-calc2.0/internal/logger"
-	"github.com/Gandalf-Rus/distributed-calc2.0/internal/work"
 	"github.com/Gandalf-Rus/distributed-calc2.0/proto"
 	"github.com/google/uuid"
+	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -52,22 +54,23 @@ func initConfig() {
 }
 
 type AgentProp struct {
-	AgentId            string
-	TotalProcs         int
-	FreeProcsFreeProcs int
-	CtxCancelFunc      context.CancelFunc
-	ctx                context.Context
-	grpcClientConn     *grpc.ClientConn
+	AgentId        string
+	TotalWorkers   int
+	FreeWorkers    int32
+	CtxCancelFunc  context.CancelFunc
+	ctx            context.Context
+	grpcClientConn *grpc.ClientConn
+	serviceClient  proto.NodeServiceClient
 }
 
 func New(ctx context.Context, ctxCancelFunc context.CancelFunc) AgentProp {
 	initConfig()
 	agent := AgentProp{
-		AgentId:            uuid.New().String(),
-		TotalProcs:         cfg.maxWorkers,
-		FreeProcsFreeProcs: cfg.maxWorkers,
-		ctx:                ctx,
-		CtxCancelFunc:      ctxCancelFunc,
+		AgentId:       uuid.New().String(),
+		TotalWorkers:  cfg.maxWorkers,
+		FreeWorkers:   int32(cfg.maxWorkers),
+		ctx:           ctx,
+		CtxCancelFunc: ctxCancelFunc,
 	}
 
 	return agent
@@ -83,29 +86,49 @@ func (a *AgentProp) Run() {
 	}
 	a.grpcClientConn = conn
 
-	grpcClient := proto.NewNodeServiceClient(conn)
-	a.doHeardBeat(grpcClient)
+	a.serviceClient = proto.NewNodeServiceClient(conn)
 
-	pool := work.New(cfg.maxWorkers)
-	go func(pool *work.Pool) {
-		pool.Run()
-	}(pool)
-	defer pool.Shutdown()
+	heardBeatTick := time.NewTicker(time.Second * time.Duration(cfg.heardBeatTimeout))
+	TaskTick := time.NewTicker(time.Second * time.Duration(cfg.getNodesTimeout))
+	chTasks := make(chan *expression.Node)
+	defer close(chTasks)
 
-	go func() {
-		tick := time.NewTicker(time.Second * time.Duration(cfg.getNodesTimeout))
-		for range tick.C {
-			tasks, err := a.getTasks(grpcClient, pool.CountOfFreeGorutines())
-			if err != nil {
-				logger.Slogger.Error(err)
-			}
-			for _, task := range tasks {
-				pool.AddTask(task)
+	var wg *sync.WaitGroup = &sync.WaitGroup{}
+	wg.Add(2)
+	go func(wg *sync.WaitGroup) {
+		a.getTasks(chTasks)
+		done := false
+		for !done {
+			select {
+			case <-heardBeatTick.C:
+				a.doHeardBeat()
+			case <-TaskTick.C:
+				a.getTasks(chTasks)
+			case <-a.ctx.Done():
+				heardBeatTick.Stop()
+				TaskTick.Stop()
+				wg.Done()
+				done = true
 			}
 		}
-	}()
+	}(wg)
 
-	<-a.ctx.Done()
+	go func(ch <-chan *expression.Node, agent *AgentProp, wg *sync.WaitGroup) {
+		// Здесь из канала приходят ноды только если у нас были свободные воркеры =>
+		// тут делать проверку на свободных агентов не надо, просто читаем из канала
+		for task := range ch {
+			go func(task *expression.Node, a *AgentProp) {
+				calculateNode(task)
+				a.sendNode(task)
+				// после вычеслений осовобождаем воркера
+				atomic.AddInt32(&a.FreeWorkers, 1)
+			}(task, a)
+		}
+		wg.Done()
+
+	}(chTasks, a, wg)
+
+	wg.Wait()
 }
 
 func (a *AgentProp) Stop(ctx context.Context) {
@@ -114,16 +137,16 @@ func (a *AgentProp) Stop(ctx context.Context) {
 
 }
 
-func (a AgentProp) getTasks(client proto.NodeServiceClient, freeWorkers int) ([]work.Task, error) {
-	tasks := make([]work.Task, 0)
+func (a *AgentProp) getNodes(freeWorkers int32) ([]*expression.Node, error) {
+	nodes := make([]*expression.Node, 0)
 
-	response, err := client.GetNodes(a.ctx, &proto.GetNodesRequest{
+	response, err := a.serviceClient.GetNodes(a.ctx, &proto.GetNodesRequest{
 		AgentId:     a.AgentId,
 		FreeWorkers: int32(freeWorkers),
 	})
 
 	if err != nil {
-		return tasks, err
+		return nodes, err
 	}
 
 	// получаем время выполнения
@@ -135,45 +158,47 @@ func (a AgentProp) getTasks(client proto.NodeServiceClient, freeWorkers int) ([]
 	}
 
 	var node *expression.Node
-	doFunc := func(node *expression.Node) {
-		calculateNode(node)
-		logger.Logger.Info(fmt.Sprintf("node is done. %v %v %v = %v, message: %v, status: %v",
-			*node.Operand1, node.Operator, *node.Operand2, *node.Result, node.Message, node.Status.ToString()))
-		a.sendNode(node, client)
-	}
-
 	for _, protoNode := range response.Nodes {
 		node = grpcconversion.GrpcNodeToNode(protoNode)
-		logger.Logger.Info(fmt.Sprintf("node #%v.%v in work (%v %v %v)", node.ExpressionId, node.NodeId, *node.Operand1, node.Operator, *node.Operand2))
-		snode := NewSmartNode(node, doFunc)
-		tasks = append(tasks, snode)
+		nodes = append(nodes, node)
 	}
-
-	return tasks, nil
+	return nodes, nil
 }
 
-func (a AgentProp) doHeardBeat(client proto.NodeServiceClient) {
-	tick := time.NewTicker(time.Second * time.Duration(cfg.heardBeatTimeout))
-	go func() {
-		for range tick.C {
-			client.TakeHeartBeat(a.ctx, &proto.GetNodesRequest{
-				AgentId:     a.AgentId,
-				FreeWorkers: 0,
-			})
-
-		}
-	}()
+func (a *AgentProp) doHeardBeat() {
+	a.serviceClient.TakeHeartBeat(a.ctx, &proto.GetNodesRequest{
+		AgentId:     a.AgentId,
+		FreeWorkers: 0,
+	})
 }
 
-func (a AgentProp) sendNode(node *expression.Node, client proto.NodeServiceClient) {
+func (a *AgentProp) sendNode(node *expression.Node) {
 	protoNode, err := grpcconversion.NodeToGrpcNode(node)
 	if err != nil {
 		logger.Slogger.Error(err)
 	}
-	client.EditNode(a.ctx, &proto.EditNodeRequest{
+	a.serviceClient.EditNode(a.ctx, &proto.EditNodeRequest{
 		AgentId: a.AgentId,
 		Node:    protoNode,
 	})
+}
+
+func (a *AgentProp) getTasks(chTasks chan<- *expression.Node) {
+	logger.Logger.Info("Get tasks", zap.Int32("freeWorkers", a.FreeWorkers))
+	if a.FreeWorkers > 0 {
+		nodes, err := a.getNodes(a.FreeWorkers)
+		atomic.AddInt32(&a.FreeWorkers, int32(-1*len(nodes)))
+		logger.Logger.Info("Get tasks", zap.Int32("freeWorkers2", a.FreeWorkers))
+
+		if err != nil {
+			logger.Logger.Error(fmt.Sprintf("can't get nodes error: %v", err))
+			return
+		}
+
+		for _, node := range nodes {
+			chTasks <- node
+		}
+	}
 }
 
 func calculateNode(node *expression.Node) {

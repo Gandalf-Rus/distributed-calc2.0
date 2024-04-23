@@ -23,13 +23,14 @@ func RegistrateAgent(agentId string) {
 	logger.Logger.Info(fmt.Sprintf("NewAgentId:%s AgentsCount: %v", agentId, len(agents)))
 }
 
-func IsAgent(agentId string) bool {
+func IsAgentRegistrated(agentId string) bool {
 	_, found := agents[agentId]
 	return found
 }
 
 func TakeHeartBeat(agentId string) {
 	agents[agentId].LastSeen = time.Now()
+	logger.Logger.Debug(fmt.Sprintf("I'm still here [%v]", agentId))
 }
 
 // Удаляем пропавших агентов
@@ -39,7 +40,7 @@ func cleanLostAgents(repo repo) {
 			logger.Logger.Info("Agent lost",
 				zap.String("agent_id", id),
 				zap.Time("Last seen", a.LastSeen),
-				zap.Int("timeout sec", int(config.Cfg.AgentLostTimeout)),
+				zap.Duration("timeout sec", config.Cfg.AgentLostTimeout),
 			)
 
 			if err := repo.ReleaseAgentUnfinishedNodes(id); err != nil {
@@ -55,8 +56,10 @@ func LostAgentCollector(repo repo) {
 	tick := time.NewTicker(config.Cfg.AgentLostTimeout)
 	go func() {
 		for range tick.C {
+			logger.Logger.Info("ищу жертву")
 			// таймер прозвенел
 			cleanLostAgents(repo)
 		}
+		logger.Logger.Info("я свое дело сделал")
 	}()
 }

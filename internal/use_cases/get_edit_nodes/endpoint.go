@@ -55,7 +55,7 @@ func (s *Server) GetNodes(ctx context.Context, in *pb.GetNodesRequest) (*pb.GetN
 }
 
 func (s *Server) TakeHeartBeat(ctx context.Context, in *pb.GetNodesRequest) (*empty.Empty, error) {
-	if agent.IsAgent(in.AgentId) {
+	if agent.IsAgentRegistrated(in.AgentId) {
 		agent.TakeHeartBeat(in.AgentId)
 	} else {
 		agent.RegistrateAgent(in.AgentId)
