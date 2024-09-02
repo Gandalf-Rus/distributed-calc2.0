@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Interaction</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="theme-switch-wrapper">
+            <label class="theme-switch" for="checkbox">
+                <input type="checkbox" id="checkbox" />
+                <div class="slider round"></div>
+            </label>
+            <em>Переключить тему</em>
+        </div>
+
+        <h1>API Interaction</h1>
+
+        <div id="loginPage">
+            <div class="switch-container">
+                <button class="switch-btn active" id="switchToLogin" onclick="showLogin()">Login</button>
+                <button class="switch-btn" id="switchToRegister" onclick="showRegister()">Register</button>
+            </div>
+    
+            <div id="login" class="card">
+                <h2>Login</h2>
+                <input type="text" id="username" placeholder="Username">
+                <input type="password" id="password" placeholder="Password">
+                <button class="btn" onclick="login()">Login</button>
+            </div>
+    
+            <div id="register" class="card" style="display:none;">
+                <h2>Register</h2>
+                <input type="text" id="registerUsername" placeholder="Username">
+                <input type="password" id="registerPassword" placeholder="Password">
+                <button class="btn" onclick="register()">Register</button>
+            </div>
+        </div>
+
+        <div id="mainPage" style="display:none;">
+            <div id="getExpressions" class="card">
+                <h2>Get Expressions</h2>
+                <button class="btn" onclick="getExpressions()">Get All Expressions</button>
+                <div id="expressionsOutput" class="output-container"></div>
+            </div>
+
+            <div id="postExpression" class="card">
+                <h2>Post Expression</h2>
+                <input type="text" id="expressionInput" placeholder="Expression">
+                <input type="text" id="exitId" placeholder="Exit ID">
+                <button class="btn" onclick="postExpression()">Post Expression</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

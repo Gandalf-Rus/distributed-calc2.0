@@ -75,6 +75,7 @@ func New(ctx context.Context, ctxCancelFunc context.CancelFunc) AgentProp {
 
 func (a *AgentProp) Run() {
 	addr := fmt.Sprintf("%s:%d", cfg.serverHost, cfg.serverPort)
+	log.Println(addr)
 	conn, err := grpc.Dial(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 
 	if err != nil {

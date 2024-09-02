@@ -49,8 +49,9 @@ func New(ctx context.Context) (*Orchestrator, error) {
 		return nil, fmt.Errorf("failed to read config: %w", err)
 	}
 
-	//привязываем мидлвейр
+	// привязываем мидлвейры
 	router.Use(middlewares.LoggingMiddleware)
+	router.Use(middlewares.CorsMiddleware) // обработка CORS (Cross-Origin Resource Sharing)
 
 	// иницилизируем структуру для работы с базой
 	repo, err := storage.New(ctx)
@@ -80,6 +81,7 @@ func New(ctx context.Context) (*Orchestrator, error) {
 	editOperationdurationHandler := http.HandlerFunc(editopduration.MakeHandler(editopduration.NewSvc(&repo, &config.Cfg)))
 
 	apiRouter := mux.NewRouter().PathPrefix("/api").Subrouter()
+
 	apiRouter.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) { w.Write([]byte("hi")) }).Methods("GET")
 	apiRouter.HandleFunc("/register", registerHandler).Methods("POST")
 	apiRouter.HandleFunc("/login", loginHandler).Methods("POST")

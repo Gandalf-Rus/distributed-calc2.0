@@ -1,0 +1,215 @@
+:root {
+    --bg-color: #f4f7f9;
+    --container-bg: #fff;
+    --text-color: #333;
+    --heading-color: #1a237e;
+    --card-bg: #ffffff;
+    --input-bg: #fff;
+    --input-border: #bdbdbd;
+    --btn-bg: #1565c0;
+    --btn-color: white;
+    --btn-hover: #0d47a1;
+    --switch-bg: #e3f2fd;
+    --switch-active: #1565c0;
+    --output-bg: #f8f9fa;
+    --output-border: #e3f2fd;
+    --output-text: #1a237e;
+}
+
+.dark-theme {
+    --bg-color: #1a1a1a;
+    --container-bg: #2c2c2c;
+    --text-color: #e0e0e0;
+    --heading-color: #ffd54f;
+    --card-bg: #363636;
+    --input-bg: #424242;
+    --input-border: #616161;
+    --btn-bg: #ffa000;
+    --btn-color: #1a1a1a;
+    --btn-hover: #ffb300;
+    --switch-bg: #616161;
+    --switch-active: #ffa000;
+    --output-bg: #424242;
+    --output-border: #616161;
+    --output-text: #ffd54f;
+}
+body {
+    font-family: 'Arial', sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    transition: all 0.3s ease;
+}
+
+.container {
+    width: 100%;
+    max-width: 450px;
+    padding: 30px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    background-color: var(--container-bg);
+    border-radius: 15px;
+    transition: all 0.3s ease;
+}
+
+h1, h2 {
+    margin: 0;
+    padding-bottom: 20px;
+    text-align: center;
+    color: var(--heading-color);
+}
+
+.switch-container {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 30px;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.switch-btn {
+    flex: 1;
+    padding: 12px;
+    border: none;
+    background-color: var(--switch-bg);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 16px;
+    color: var(--text-color);
+}
+
+.switch-btn.active {
+    background-color: var(--switch-active);
+    color: white;
+}
+
+.card {
+    margin-bottom: 25px;
+    padding: 25px;
+    border-radius: 12px;
+    background: var(--card-bg);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+    transition: all 0.3s ease;
+}
+
+.card:hover {
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+input {
+    width: 100%;
+    margin: 12px 0;
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid var(--input-border);
+    font-size: 16px;
+    box-sizing: border-box;
+    transition: all 0.3s ease;
+    background-color: var(--input-bg);
+    color: var(--text-color);
+}
+
+input:focus {
+    border-color: var(--btn-bg);
+    outline: none;
+}
+
+.btn {
+    width: 100%;
+    padding: 14px;
+    border: none;
+    border-radius: 8px;
+    background-color: var(--btn-bg);
+    color: var(--btn-color);
+    font-size: 16px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.btn:hover {
+    background-color: var(--btn-hover);
+}
+
+.output-container {
+    background-color: var(--output-bg);
+    padding: 15px;
+    border-radius: 8px;
+    margin-top: 20px;
+    max-height: 200px;
+    overflow-y: auto;
+    border: 1px solid var(--output-border);
+}
+
+.output-container pre {
+    margin: 0;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 14px;
+    color: var(--output-text);
+}
+
+/* Theme switch styles */
+.theme-switch-wrapper {
+    display: flex;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.theme-switch {
+    display: inline-block;
+    height: 34px;
+    position: relative;
+    width: 60px;
+}
+
+.theme-switch input {
+    display: none;
+}
+
+.slider {
+    background-color: #ccc;
+    bottom: 0;
+    cursor: pointer;
+    left: 0;
+    position: absolute;
+    right: 0;
+    top: 0;
+    transition: .4s;
+}
+
+.slider:before {
+    background-color: #fff;
+    bottom: 4px;
+    content: "";
+    height: 26px;
+    left: 4px;
+    position: absolute;
+    transition: .4s;
+    width: 26px;
+}
+
+input:checked + .slider {
+    background-color: var(--btn-bg);
+}
+
+input:checked + .slider:before {
+    transform: translateX(26px);
+}
+
+.slider.round {
+    border-radius: 34px;
+}
+
+.slider.round:before {
+    border-radius: 50%;
+}
+
+.theme-switch-wrapper em {
+    margin-left: 10px;
+    font-size: 14px;
+}

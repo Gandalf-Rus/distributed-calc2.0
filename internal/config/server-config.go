@@ -11,7 +11,7 @@ const (
 	defaultServerPort       = "8080"
 	defaultGrpcHost         = "localhost"
 	defaultGrpcPort         = "5000"
-	defaultDBHost           = "localhost"
+	defaultDBHost           = "localhost" // "db"
 	defaultDBPort           = "5432"
 	defaultDBUser           = "postgres"
 	defaultDBPassword       = "postgres"
@@ -32,13 +32,6 @@ type Config struct {
 	OperatorsDelay   OperatorsDelay
 	AgentLostTimeout time.Duration
 	JwtTokenTimeout  time.Duration
-}
-
-type OperatorsDelay struct {
-	DelayForAdd int
-	DelayForSub int
-	DelayForMul int
-	DelayForDiv int
 }
 
 var Cfg Config

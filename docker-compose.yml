@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:latest
+    container_name: distributedcalc_db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: distributedcalc
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: distributedcalc_backend
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/distributedcalc
+    depends_on:
+      - db
+    ports:
+      - "8080:8080"
+      - "5000:5000"
+    command: ["/app/server"]
+
+  agent:
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    container_name: distributedcalc_agent
+    depends_on:
+      - backend
+    command: ["/app/agent"]
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: distributedcalc_frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+
+volumes:
+  db_data:
