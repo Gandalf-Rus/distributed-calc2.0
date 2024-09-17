@@ -2,9 +2,12 @@ package config
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"strconv"
 	"time"
+
+	"github.com/joho/godotenv"
 )
 
 const (
@@ -37,6 +40,10 @@ type Config struct {
 var Cfg Config
 
 func InitConfig() error {
+	err := godotenv.Load()
+	if err != nil {
+		log.Println("error loading .env file")
+	}
 
 	serverPort := os.Getenv("SERVER_PORT")
 	if serverPort == "" {

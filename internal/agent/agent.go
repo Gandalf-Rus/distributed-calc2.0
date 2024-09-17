@@ -2,7 +2,6 @@ package agent
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"log"
 	"time"
@@ -18,63 +17,67 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-type Config struct {
-	serverHost       string
-	serverPort       int
-	maxWorkers       int
-	heardBeatTimeout int
-	getNodesTimeout  int
-	operatorsDelay   c.OperatorsDelay
-}
+// type Config struct {
+// 	serverHost       string
+// 	serverPort       int
+// 	maxWorkers       int
+// 	heardBeatTimeout int
+// 	getNodesTimeout  int
+// 	operatorsDelay   c.OperatorsDelay
+// }
 
-var cfg Config
+// var cfg Config
 
-func initConfig() {
-	serverHost := flag.String("host", "localhost", "Host to get job from")
-	serverPort := flag.Int("port", 5000, "Port of the host")
-	maxWorkers := flag.Int("workers", 3, "Maximum number of workers")
-	heardBeatTimeout := flag.Int("heardBeatTimeout", 3, "heardBeat interval (seconds)")
-	getNodesTimeout := flag.Int("getNodesTimeout", 3, "get tasks interval (seconds)")
-	flag.Parse()
+// func initConfig() {
+// 	serverHost := flag.String("host", "localhost", "Host to get job from")
+// 	serverPort := flag.Int("port", 5000, "Port of the host")
+// 	maxWorkers := flag.Int("workers", 3, "Maximum number of workers")
+// 	heardBeatTimeout := flag.Int("heardBeatTimeout", 3, "heardBeat interval (seconds)")
+// 	getNodesTimeout := flag.Int("getNodesTimeout", 3, "get tasks interval (seconds)")
+// 	flag.Parse()
 
-	cfg.serverHost = *serverHost
-	cfg.serverPort = *serverPort
-	cfg.maxWorkers = *maxWorkers
-	cfg.heardBeatTimeout = *heardBeatTimeout
-	cfg.getNodesTimeout = *getNodesTimeout
+// 	cfg.serverHost = *serverHost
+// 	cfg.serverPort = *serverPort
+// 	cfg.maxWorkers = *maxWorkers
+// 	cfg.heardBeatTimeout = *heardBeatTimeout
+// 	cfg.getNodesTimeout = *getNodesTimeout
 
-	cfg.operatorsDelay = c.OperatorsDelay{
-		DelayForAdd: 1,
-		DelayForSub: 1,
-		DelayForMul: 1,
-		DelayForDiv: 1,
-	}
-}
+// 	cfg.operatorsDelay = c.OperatorsDelay{
+// 		DelayForAdd: 1,
+// 		DelayForSub: 1,
+// 		DelayForMul: 1,
+// 		DelayForDiv: 1,
+// 	}
+// }
 
 type AgentProp struct {
-	AgentId            string
-	TotalProcs         int
-	FreeProcsFreeProcs int
-	CtxCancelFunc      context.CancelFunc
-	ctx                context.Context
-	grpcClientConn     *grpc.ClientConn
+	AgentId        string
+	TotalProcs     int
+	FreeProcs      int
+	CtxCancelFunc  context.CancelFunc
+	ctx            context.Context
+	grpcClientConn *grpc.ClientConn
 }
 
 func New(ctx context.Context, ctxCancelFunc context.CancelFunc) AgentProp {
-	initConfig()
+	c.InitAgentConfig()
+
 	agent := AgentProp{
-		AgentId:            uuid.New().String(),
-		TotalProcs:         cfg.maxWorkers,
-		FreeProcsFreeProcs: cfg.maxWorkers,
-		ctx:                ctx,
-		CtxCancelFunc:      ctxCancelFunc,
+		AgentId:       uuid.New().String(),
+		TotalProcs:    c.AgentCfg.MaxWorkers,
+		FreeProcs:     c.AgentCfg.MaxWorkers,
+		ctx:           ctx,
+		CtxCancelFunc: ctxCancelFunc,
 	}
 
 	return agent
 }
 
 func (a *AgentProp) Run() {
-	addr := fmt.Sprintf("%s:%d", cfg.serverHost, cfg.serverPort)
+	addr := fmt.Sprintf("%s:%d",
+		c.AgentCfg.ConnHost,
+		c.AgentCfg.ConnPort)
+
 	log.Println(addr)
 	conn, err := grpc.Dial(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 
@@ -87,14 +90,14 @@ func (a *AgentProp) Run() {
 	grpcClient := proto.NewNodeServiceClient(conn)
 	a.doHeardBeat(grpcClient)
 
-	pool := work.New(cfg.maxWorkers)
+	pool := work.New(c.AgentCfg.MaxWorkers)
 	go func(pool *work.Pool) {
 		pool.Run()
 	}(pool)
 	defer pool.Shutdown()
 
 	go func() {
-		tick := time.NewTicker(time.Second * time.Duration(cfg.getNodesTimeout))
+		tick := time.NewTicker(time.Second * c.AgentCfg.GetNodesTimeout)
 		for range tick.C {
 			tasks, err := a.getTasks(grpcClient, pool.CountOfFreeGorutines())
 			if err != nil {
@@ -128,7 +131,7 @@ func (a AgentProp) getTasks(client proto.NodeServiceClient, freeWorkers int) ([]
 	}
 
 	// получаем время выполнения
-	cfg.operatorsDelay = c.OperatorsDelay{
+	c.AgentCfg.OperatorsDelay = c.OperatorsDelay{
 		DelayForAdd: int(response.OpDurations.Add),
 		DelayForSub: int(response.OpDurations.Sub),
 		DelayForMul: int(response.OpDurations.Mul),
@@ -154,7 +157,7 @@ func (a AgentProp) getTasks(client proto.NodeServiceClient, freeWorkers int) ([]
 }
 
 func (a AgentProp) doHeardBeat(client proto.NodeServiceClient) {
-	tick := time.NewTicker(time.Second * time.Duration(cfg.heardBeatTimeout))
+	tick := time.NewTicker(time.Second * c.AgentCfg.HeardBeatTimeout)
 	go func() {
 		for range tick.C {
 			client.TakeHeartBeat(a.ctx, &proto.GetNodesRequest{
@@ -189,17 +192,17 @@ func calculateNode(node *expression.Node) {
 	case node.Operator == "+":
 		result = *node.Operand1 + *node.Operand2
 		node.Result = &result
-		secondsDelay = cfg.operatorsDelay.DelayForAdd
+		secondsDelay = c.AgentCfg.OperatorsDelay.DelayForAdd
 
 	case node.Operator == "-":
 		result = *node.Operand1 - *node.Operand2
 		node.Result = &result
-		secondsDelay = cfg.operatorsDelay.DelayForSub
+		secondsDelay = c.AgentCfg.OperatorsDelay.DelayForSub
 
 	case node.Operator == "*":
 		result = *node.Operand1 * *node.Operand2
 		node.Result = &result
-		secondsDelay = cfg.operatorsDelay.DelayForMul
+		secondsDelay = c.AgentCfg.OperatorsDelay.DelayForMul
 
 	case node.Operator == "/":
 		if *node.Operand2 == 0 {
@@ -209,7 +212,7 @@ func calculateNode(node *expression.Node) {
 		} else {
 			result = *node.Operand1 / *node.Operand2
 			node.Result = &result
-			secondsDelay = cfg.operatorsDelay.DelayForDiv
+			secondsDelay = c.AgentCfg.OperatorsDelay.DelayForDiv
 		}
 	default:
 		node.Status = expression.Error

@@ -2,9 +2,12 @@ package config
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"strconv"
 	"time"
+
+	"github.com/joho/godotenv"
 )
 
 const (
@@ -35,6 +38,11 @@ var AgentCfg AgentConfig
 
 func InitAgentConfig() error {
 	var err error
+
+	err = godotenv.Load()
+	if err != nil {
+		log.Println("error loading .env file")
+	}
 
 	connHost := os.Getenv("CONN_HOST")
 	if connHost == "" {
