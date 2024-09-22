@@ -11,75 +11,21 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-const (
-	reqProgressNodesToReady = `
+func (s *Storage) SaveLostNodes(readyStatus, progresStatus string) error {
+	var req = `
 	UPDATE nodes SET status=$1, agent_id=NULL
 	WHERE status=$2
 	`
 
-	reqSelectExitIds = `
-	SELECT exit_id FROM expressions
-	`
-
-	reqSelectExpression = `
-	SELECT * FROM expressions WHERE exit_id=$1
-	`
-
-	reqSelectExpressionsByUser = `
-	SELECT * FROM expressions WHERE user_id=$1	
-	`
-
-	reqInsertExpression = `
-	INSERT INTO expressions(exit_id, user_id, body, status)
-	values ($1, $2, $3, $4)
-	RETURNING id
-	`
-
-	reqInsertNode = `
-	INSERT INTO nodes(node_id, expression_id, parent_node_id, 
-		child1_node_id, child2_node_id,
-		operand1, operand2, operator, status)
-	values ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-	`
-
-	reqUpdAndGetNodesAgent = `
-	UPDATE nodes SET status=$1, agent_id=$2
-	WHERE id IN (SELECT id FROM nodes WHERE status='ready' LIMIT $3)
-	RETURNING *
-	`
-
-	reqReleaseNodes = `
-	UPDATE nodes SET status='ready', agent_id=NULL WHERE agent_id=$1
-	`
-
-	reqUpdateNode = `
-	UPDATE nodes SET operand1=$1, operand2=$2, result=$3, status=$4, message=$5, agent_id=NULL 
-	WHERE node_id=$6 AND expression_id=$7
-	`
-
-	reqSelectNode = `
-	SELECT * FROM nodes WHERE  expression_id=$1 AND node_id=$2
-	`
-
-	reqSelectNodes = `
-	SELECT * FROM nodes WHERE  expression_id=$1
-	`
-
-	reqUpdateExpression = `
-	UPDATE expressions SET result=$1, status=$2, message=$3
-	WHERE id=$4
-	`
-)
-
-func (s *Storage) SaveLostNodes(readyStatus, progresStatus string) error {
-	_, err := s.connPool.Exec(s.ctx, reqProgressNodesToReady, readyStatus, progresStatus)
+	_, err := s.connPool.Exec(s.ctx, req, readyStatus, progresStatus)
 	return err
 }
 
 func (s *Storage) GetExpressionExitIds() ([]string, error) {
+	var req = `SELECT exit_id FROM expressions`
 	var ids []string
 
-	rows, err := s.connPool.Query(s.ctx, reqSelectExitIds)
+	rows, err := s.connPool.Query(s.ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -117,14 +63,18 @@ func (s *Storage) SaveExpressionAndNodes(expr expression.Expression, nodes []*ex
 // get expression
 
 func (s *Storage) GetExpression(exitId string) (*expression.Expression, error) {
-	row := s.connPool.QueryRow(s.ctx, reqSelectExpression, exitId)
+	var req = `SELECT * FROM expressions WHERE exit_id=$1`
+
+	row := s.connPool.QueryRow(s.ctx, req, exitId)
 	return scanExpression(row)
 }
 
 // get expressions
 
 func (s *Storage) GetUserExpressions(userId int) ([]*expression.Expression, error) {
-	rows, err := s.connPool.Query(s.ctx, reqSelectExpressionsByUser, userId)
+	var req = `SELECT * FROM expressions WHERE user_id=$1	`
+
+	rows, err := s.connPool.Query(s.ctx, req, userId)
 	if err != nil {
 		return nil, err
 	}
@@ -150,8 +100,13 @@ func (s *Storage) EditNodesStatusAndGetReadyNodes(agentId string, count int) ([]
 	// 	return nil, err
 	// }
 	// defer tx.Rollback(s.ctx)
+	var req = `
+	UPDATE nodes SET status=$1, agent_id=$2
+	WHERE id IN (SELECT id FROM nodes WHERE status='ready' LIMIT $3)
+	RETURNING *
+	`
 
-	rows, err := s.connPool.Query(s.ctx, reqUpdAndGetNodesAgent, expression.Status.ToString(expression.InProgress), agentId, count)
+	rows, err := s.connPool.Query(s.ctx, req, expression.Status.ToString(expression.InProgress), agentId, count)
 	if err != nil {
 		return nil, err
 	}
@@ -241,7 +196,9 @@ func (s *Storage) SetExpressionToDone(expressionId int, result float64) error {
 // agent
 
 func (s *Storage) ReleaseAgentUnfinishedNodes(agentId string) error {
-	if _, err := s.connPool.Exec(s.ctx, reqReleaseNodes, agentId); err != nil {
+	var req = `UPDATE nodes SET status='ready', agent_id=NULL WHERE agent_id=$1`
+
+	if _, err := s.connPool.Exec(s.ctx, req, agentId); err != nil {
 		return err
 	}
 	return nil
@@ -254,13 +211,24 @@ func (s *Storage) ReleaseAgentUnfinishedNodes(agentId string) error {
 func insertExpression(ctx context.Context, conn *pgxpool.Pool, e expression.Expression) (int, error) {
 	logger.Logger.Info(fmt.Sprint(e.ExitId, e.UserId, e.Body, e.Status.ToString()))
 	var id int
-	row := conn.QueryRow(ctx, reqInsertExpression, e.ExitId, e.UserId, e.Body, e.Status.ToString())
+	var req = `INSERT INTO expressions(exit_id, user_id, body, status)
+		values ($1, $2, $3, $4)
+		RETURNING id
+	`
+
+	row := conn.QueryRow(ctx, req, e.ExitId, e.UserId, e.Body, e.Status.ToString())
 	err := row.Scan(&id)
 	return id, err
 }
 
 func insertNode(ctx context.Context, conn *pgxpool.Pool, n *expression.Node) error {
-	if _, err := conn.Exec(ctx, reqInsertNode, n.NodeId, n.ExpressionId, n.ParentNodeId,
+	var req = `INSERT INTO nodes(node_id, expression_id, parent_node_id, 
+				child1_node_id, child2_node_id,
+				operand1, operand2, operator, status)
+			values ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+			`
+
+	if _, err := conn.Exec(ctx, req, n.NodeId, n.ExpressionId, n.ParentNodeId,
 		n.Child1NodeId, n.Child2NodeId, n.Operand1, n.Operand2, n.Operator,
 		n.Status.ToString()); err != nil {
 		return err
@@ -270,7 +238,12 @@ func insertNode(ctx context.Context, conn *pgxpool.Pool, n *expression.Node) err
 }
 
 func updateNode(ctx context.Context, conn *pgxpool.Pool, n *expression.Node) error {
-	_, err := conn.Exec(ctx, reqUpdateNode,
+	var req = `
+	UPDATE nodes SET operand1=$1, operand2=$2, result=$3, status=$4, message=$5, agent_id=NULL 
+	WHERE node_id=$6 AND expression_id=$7
+	`
+
+	_, err := conn.Exec(ctx, req,
 		n.Operand1, n.Operand2, n.Result,
 		n.Status.ToString(), n.Message, n.NodeId, n.ExpressionId)
 
@@ -281,7 +254,12 @@ func updateNode(ctx context.Context, conn *pgxpool.Pool, n *expression.Node) err
 }
 
 func updateExpression(ctx context.Context, conn *pgxpool.Pool, expressionId int, result float64, status string, message string) error {
-	_, err := conn.Query(ctx, reqUpdateExpression,
+	var req = `
+	UPDATE expressions SET result=$1, status=$2, message=$3
+	WHERE id=$4
+	`
+
+	_, err := conn.Query(ctx, req,
 		result, status, message, expressionId)
 
 	if err != nil {
@@ -291,13 +269,17 @@ func updateExpression(ctx context.Context, conn *pgxpool.Pool, expressionId int,
 }
 
 func getNode(ctx context.Context, conn *pgxpool.Pool, expressionId, nodeId int) (*expression.Node, error) {
-	row := conn.QueryRow(ctx, reqSelectNode, expressionId, nodeId)
+	var req = `SELECT * FROM nodes WHERE  expression_id=$1 AND node_id=$2`
+
+	row := conn.QueryRow(ctx, req, expressionId, nodeId)
 	node, err := scanNode(row)
 	return node, err
 }
 
 func getNodes(ctx context.Context, conn *pgxpool.Pool, expressionId int) ([]*expression.Node, error) {
-	rows, err := conn.Query(ctx, reqSelectNodes, expressionId)
+	var req = `SELECT * FROM nodes WHERE  expression_id=$1`
+
+	rows, err := conn.Query(ctx, req, expressionId)
 	if err != nil {
 		return nil, err
 	}

@@ -3,7 +3,7 @@ version: '3.8'
 services:
   db:
     image: postgres:latest
-    container_name: distributedcalc_db
+    container_name: calc_db
     networks:
       - app-network
     environment:
@@ -19,12 +19,12 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: distributedcalc_backend
+    container_name: calc_backend
     networks:
       - app-network
     environment:
       DB_HOST: db
-      GRPC_PORT: 8000
+      GRPC_HOST:
     depends_on:
       - db
     ports:
@@ -36,12 +36,11 @@ services:
     build:
       context: .
       dockerfile: ./Dockerfile
-    container_name: distributedcalc_agent
+    container_name: calc_agent
     networks:
       - app-network
     environment:
       CONN_HOST: backend
-      CONN_PORT: 8000
     depends_on:
       - backend
     command: ["/app/agent"]
@@ -50,7 +49,7 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: distributedcalc_frontend
+    container_name: calc_frontend
     networks:
       - app-network
     ports:

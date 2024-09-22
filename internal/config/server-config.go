@@ -12,7 +12,6 @@ import (
 
 const (
 	defaultServerPort       = "8080"
-	defaultGrpcHost         = "localhost"
 	defaultGrpcPort         = "5000"
 	defaultDBHost           = "localhost" // "db"
 	defaultDBPort           = "5432"
@@ -56,9 +55,6 @@ func InitConfig() error {
 	}
 
 	grpcHost := os.Getenv("GRPC_HOST")
-	if grpcHost == "" {
-		grpcHost = defaultGrpcHost
-	}
 
 	grpcPort := os.Getenv("GRPC_PORT")
 	if grpcPort == "" {
